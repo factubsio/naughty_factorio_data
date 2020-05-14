@@ -15,6 +15,8 @@
 #define gval(n)		(&(n)->i_val)
 #define gnext(n)	((n)->i_key.nk.next)
 
+int luaH_foreach (lua_State *L, Table *t, TableItCallback callback);
+
 #define invalidateTMcache(t)	((t)->flags = 0)
 
 

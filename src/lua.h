@@ -129,6 +129,8 @@ LUA_API lua_State *(lua_newstate) (lua_Alloc f, void *ud);
 LUA_API void       (lua_close) (lua_State *L);
 LUA_API lua_State *(lua_newthread) (lua_State *L);
 
+LUA_API void *(lua_getuserdata)(lua_State *L);
+
 LUA_API lua_CFunction (lua_atpanic) (lua_State *L, lua_CFunction panicf);
 
 
@@ -307,6 +309,8 @@ LUA_API int (lua_gc) (lua_State *L, int what, int data);
 
 LUA_API int   (lua_error) (lua_State *L);
 
+using TableItCallback = void(*)(lua_State *L);
+LUA_API int (lua_foreach)(lua_State *L, int idx, TableItCallback);
 LUA_API int   (lua_next) (lua_State *L, int idx);
 
 LUA_API void  (lua_concat)     (lua_State *L, int n);
