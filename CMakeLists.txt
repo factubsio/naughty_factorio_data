@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(factorio-data-browser CXX C)
 
+set(CMAKE_CXX_STANDARD 17)
+
 add_library(options INTERFACE)
 target_compile_features(options INTERFACE cxx_std_17)
 
