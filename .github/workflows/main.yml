@@ -24,6 +24,11 @@ jobs:
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
+    
+    - name: gcc
+      run: |
+        gcc-8 --version
+      shell: bash
         
     - name: run-cmake
       uses: lukka/run-cmake@v2.5
