@@ -1,17 +1,20 @@
 cmake_minimum_required(VERSION 3.10)
-set(CMAKE_CXX_STANDARD 17)
+project(factorio-data-browser CXX C)
 
-project(factorio-data-browser)
+add_library(options INTERFACE)
+target_compile_features(options INTERFACE cxx_std_17)
 
 # stupid hacky nana doesn't like to be include() so fuck them
-include_directories(nana/include)
+# include_directories(nana/include)
 
 add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0 _NO_DEBUG_HEAP=1)
 
-include(${CMAKE_SOURCE_DIR}/src/CMakeLists.txt)
-include(${CMAKE_SOURCE_DIR}/nana/CMakeLists.txt)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/headers)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/lua)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/SimpleJson)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/zip)
+add_subdirectory(${CMAKE_SOURCE_DIR}/nana)
 
-set(exec_name factorio_data_dumper)
-add_executable(${exec_name} data_dump.cpp zip.c JSON.cpp JSONValue.cpp)
-target_link_libraries(${exec_name} Lua nana)
-target_include_directories(${exec_name} PUBLIC src)
+add_executable(factorio_data_dumper data_dump.cpp)
+target_link_libraries(factorio_data_dumper PUBLIC options Lua nana headers SimpleJson zip)
+# target_include_directories(factorio_data_dumper PUBLIC src)

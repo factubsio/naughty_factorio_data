@@ -7,7 +7,12 @@
 #include <cstdio>
 #include <codecvt>
 #include <locale>
+#ifdef __linux__
+#include <unistd.h>
+#define _getcwd getcwd
+#else
 #include <direct.h>
+#endif
 #include "lualib.h"
 #include "zip.h"
 #include "JSON.h"
@@ -90,7 +95,7 @@ struct FObject
         {
             name_to_child[children[i].key] = int(i);
         }
-        
+
     }
 
     template<typename T>
@@ -222,8 +227,8 @@ std::vector<char> load_file_contents(std::string const& filepath)
 
     auto size = std::size_t(end - ifs.tellg());
 
-    if(size == 0) // avoid undefined behavior 
-        return {}; 
+    if(size == 0) // avoid undefined behavior
+        return {};
 
     std::vector<char> buffer(size);
 
@@ -279,6 +284,7 @@ struct VM
     lua_State *L = nullptr;
 
     const fs::path game_dir = "C:/Users/micha/factorios/bob_angel - Copy/Factorio_0.18.19";
+    // const fs::path game_dir = "/home/nexela/factorio";
     const fs::path corelib = game_dir / "data" / "core";
     const fs::path baselib = game_dir / "data" / "base";
     const fs::path mod_dir = game_dir / "mods";
@@ -327,7 +333,7 @@ struct VM
         for (auto &p : fs::directory_iterator(mod_dir))
         {
             if (p.is_directory()) {
-                const auto& info_path = p/"info.json";
+                const auto& info_path = p.path()/"info.json";
                 if (fs::exists(info_path))
                 {
 
@@ -424,7 +430,7 @@ struct VM
                         exit(-1);
                     }
                 }
-                
+
             }
             std::cout << "success\n";
 
@@ -532,7 +538,7 @@ struct VM
         std::string ret = "!<bad>";
         if (lua_type(L, index) == LUA_TSTRING)
         {
-            ret = lua_tostring(L, index); 
+            ret = lua_tostring(L, index);
         }
         else if (lua_type(L, index) == LUA_TNUMBER)
         {
@@ -585,7 +591,7 @@ struct VM
 
         return std::get<FObject *>(value);
     }
-      
+
 
     using cpp_lua_call = int (VM::*)(void);
     template<cpp_lua_call member_call>
@@ -639,7 +645,7 @@ struct VM
     {
         lua_pushcfunction(L, func);
         lua_setglobal(L, name.c_str());
-        
+
     }
 
     bool check_path(const std::string &label, const fs::path &from, const fs::path &request, std::string &out)
@@ -657,7 +663,7 @@ struct VM
             // std::cerr << "not found\n";
             return false;
         }
-        
+
     }
 
     static int c_require(lua_State *L)
@@ -884,7 +890,7 @@ int main()
         {
             return;
         }
-        const std::string &item_name = path[3]; 
+        const std::string &item_name = path[3];
 
         fprintf(stderr, "LOADING ITEM: %s\n", item_name.c_str());
 
@@ -920,7 +926,7 @@ int main()
 
             components.emplace_back(path.substr(n, next-n));
             auto key = path.substr(0, next);
-            
+
             if (it == prototype_factories.end()) it = prototype_factories.find(key);
             if (next == path.npos)
             {
@@ -942,7 +948,7 @@ int main()
         std::string local_path = path + "/" + entry.key;
         if (dir >= 0)
         {
-            
+
             std::string label = dir == 0 ? (entry.key + ": " + parse_fval<std::string>(entry.value)) : entry.key;
             node = data_raw_tree.insert(visual_stack.front(), local_path, label);
         }
