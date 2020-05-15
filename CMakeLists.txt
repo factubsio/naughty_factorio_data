@@ -16,5 +16,5 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/zip)
 add_subdirectory(${CMAKE_SOURCE_DIR}/nana)
 
 add_executable(factorio_data_dumper data_dump.cpp)
-target_link_libraries(factorio_data_dumper PUBLIC options Lua nana headers SimpleJson zip)
+target_link_libraries(factorio_data_dumper PUBLIC options Lua nana headers SimpleJson zip m)
 # target_include_directories(factorio_data_dumper PUBLIC src)
