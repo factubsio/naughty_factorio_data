@@ -787,6 +787,28 @@ T parse_fval(const FValue &value)
     return parse_fval(out, value);
 }
 
+std::string to_string(const FValue &value)
+{
+    
+    if (auto str = std::get_if<std::string>(&value); str)
+    {
+        return *str;
+    }
+    if (auto num = std::get_if<uint64_t>(&value); num)
+    {
+        return std::to_string(*num);
+    }
+    if (auto num = std::get_if<double>(&value); num)
+    {
+        return std::to_string(*num);
+    }
+    if (auto b = std::get_if<bool>(&value); b)
+    {
+        return (*b)? "true" : "false";
+    }
+    return "!<>";
+}
+
 
 
 struct factorio
@@ -949,7 +971,7 @@ int main()
         if (dir >= 0)
         {
 
-            std::string label = dir == 0 ? (entry.key + ": " + parse_fval<std::string>(entry.value)) : entry.key;
+            std::string label = dir == 0 ? (entry.key + ": " + to_string(entry.value)) : entry.key;
             node = data_raw_tree.insert(visual_stack.front(), local_path, label);
         }
         if (dir > 0)
