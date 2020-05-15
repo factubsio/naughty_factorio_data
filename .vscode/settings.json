@@ -64,6 +64,19 @@
         "xutility": "cpp",
         "deque": "cpp",
         "variant": "cpp",
-        "forward_list": "cpp"
+        "forward_list": "cpp",
+        "array": "cpp",
+        "atomic": "cpp",
+        "clocale": "cpp",
+        "condition_variable": "cpp",
+        "csetjmp": "cpp",
+        "cwctype": "cpp",
+        "functional": "cpp",
+        "mutex": "cpp",
+        "numeric": "cpp",
+        "optional": "cpp",
+        "set": "cpp",
+        "stack": "cpp",
+        "thread": "cpp"
     }
 }

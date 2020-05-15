@@ -22,9 +22,11 @@
 #include <fstream>
 #include <regex>
 #include <variant>
+#include <chrono>
 #include "nana/gui.hpp"
 #include "nana/gui/widgets/label.hpp"
 #include "nana/gui/widgets/treebox.hpp"
+#include "nana/gui/widgets/textbox.hpp"
 #include "bytell_hash_map.hpp"
 
 namespace fs = std::filesystem;
@@ -159,6 +161,9 @@ LUALIB_API void luaL_requiref (lua_State *L, const char *modname,
   }
 }
 #endif
+
+
+std::chrono::time_point<std::chrono::steady_clock> last_updated;
 
 void perror_l(int err)
 {
@@ -336,8 +341,6 @@ struct VM
                 const auto& info_path = p.path()/"info.json";
                 if (fs::exists(info_path))
                 {
-
-
                     const auto &info_contents_raw = load_file_contents(ws2s(info_path.wstring()));
                     std::string info_contents(info_contents_raw.data(), info_contents_raw.size());
                     JSONValue *value = JSON::Parse(info_contents.c_str());
@@ -381,10 +384,7 @@ struct VM
             }
             // auto current = mods.find(p);
         }
-
-
     }
-
 
     VM()
     {
@@ -878,6 +878,76 @@ struct factorio
     };
 };
 
+static void unhide_recursive_up(nana::treebox::item_proxy node)
+{
+    node.hide(false);
+    node.expand(true);
+    if (node.level())
+        unhide_recursive_up(node.owner());
+}
+static void unhide_recursive_down(nana::treebox::item_proxy node)
+{
+    if (node.level() >= 4) return;
+
+    node.hide(false);
+    for (auto ch : node)
+        unhide_recursive_down(ch);
+}
+
+static void apply_filter(const std::string &filter, nana::treebox::item_proxy node)
+{
+    // Don't filter too far down?
+    if (node.level() >= 4) return;
+
+    node.hide(true);
+
+    // check if this node matches
+    if (filter.length() == 0 || node.key().find(filter) != std::string::npos)
+    {
+        unhide_recursive_up(node);
+        unhide_recursive_down(node);
+    }
+    // or if our children do
+    else
+    {
+        for (auto ch : node)
+        {
+            apply_filter(filter, ch);
+        }
+    }
+}
+
+static nana::timer update_filtering;
+static nana::treebox *data_raw_tree = nullptr;
+static nana::textbox *search = nullptr;
+static bool filter_pending = false;
+static const std::chrono::milliseconds filter_throttle_interval_ms(500);
+
+static void do_filtering(const std::chrono::steady_clock::time_point &now)
+{
+    fprintf(stderr, "filtering\n");
+
+    std::string filter = search->getline(0).value();
+    auto root = data_raw_tree->find("raw");
+
+    data_raw_tree->auto_draw(false);
+    apply_filter(filter, root);
+    data_raw_tree->auto_draw(true);
+    last_updated = now;
+    filter_pending = false;
+    update_filtering.stop();
+
+    auto end = std::chrono::steady_clock::now();
+    fprintf(stderr, "elapsed: %llums\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - now));
+}
+
+static void trigger_do_filtering()
+{
+    printf("trigger\n");
+    auto now = std::chrono::steady_clock::now();
+    do_filtering(now);
+}
+
 int main()
 {
 
@@ -887,22 +957,67 @@ int main()
     label.caption("Hello");
     label.bgcolor(nana::colors::blue_violet);
 
-    nana::treebox data_raw_tree(win);
+    data_raw_tree = new nana::treebox(win);
 
     nana::place layout(win);
-    layout.div("vert<mid>");
+    layout.div("vert<search weight=40><mid>");
     // layout["mid"] << label;
-    layout["mid"] << data_raw_tree;
+    layout["mid"] << *data_raw_tree;
+
+    search = new nana::textbox(win);
+    search->multi_lines(false);
+
+    auto root_unfiltered = data_raw_tree->insert("raw", "data.raw");
+
+    search->events().text_changed([&](const nana::arg_textbox &arg) {
+        auto now = std::chrono::steady_clock::now();
+        auto time_since_last_update = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_updated);
+
+        // throttle updates
+        if (time_since_last_update >= filter_throttle_interval_ms)
+        {
+            // assert on this.
+            do_filtering(now);
+        }
+        else
+        {
+            fprintf(stderr, "throttling\n");
+            if (!filter_pending)
+            {
+                update_filtering.reset();
+                update_filtering.interval(filter_throttle_interval_ms - time_since_last_update);
+                update_filtering.elapse(trigger_do_filtering);
+                update_filtering.start();
+                filter_pending = true;
+            }
+        }
+    });
+
+    search->events().key_press([&](const nana::arg_keyboard &arg) {
+        if (arg.ctrl)
+        {
+            //READLINE!
+
+            // use stdilb.h/wctomb? :thinking:
+            if (arg.key == 'L')
+            {
+                search->select(true);
+                search->del();
+            }
+            arg.stop_propagation();
+        }
+    });
+
+    layout["search"] << *search;
 
     ska::bytell_hash_map<std::string, factorio::data::ItemPrototype> items;
 
-    auto root = data_raw_tree.insert("raw", "data.raw");
     layout.collocate();
 
     FKeyValue raw("data.raw", vm.get_data_raw());
 
     std::deque<nana::treebox::item_proxy> visual_stack;
-    visual_stack.push_front(root);
+    visual_stack.push_front(root_unfiltered);
 
     std::string path = "data/raw";
 
@@ -928,7 +1043,13 @@ int main()
 
 
 
-    data_raw_tree.events().selected([&](const nana::arg_treebox& arg) {
+    data_raw_tree->events().selected([&](const nana::arg_treebox& arg) {
+        // ignore de-selection (could do some cache freeing)
+        if (!arg.operated)
+        {
+            return;
+        }
+
         // take copy so we can chop it in place
         std::string path = arg.item.key();
         fprintf(stderr, " === looking up path: %s\n", path.c_str());
@@ -963,7 +1084,7 @@ int main()
         }
     });
 
-    data_raw_tree.auto_draw(false);
+    data_raw_tree->auto_draw(false);
     raw.table().visit([&](int dir, FKeyValue entry)
     {
         nana::treebox::item_proxy node;
@@ -972,7 +1093,7 @@ int main()
         {
 
             std::string label = dir == 0 ? (entry.key + ": " + to_string(entry.value)) : entry.key;
-            node = data_raw_tree.insert(visual_stack.front(), local_path, label);
+            node = data_raw_tree->insert(visual_stack.front(), local_path, label);
         }
         if (dir > 0)
         {
@@ -986,10 +1107,7 @@ int main()
         }
 
     });
-
-    // vm.iterate_data_raw([&](int dir, const std::string &key, const std::string &value) {
-    // });
-    data_raw_tree.auto_draw(true);
+    data_raw_tree->auto_draw(true);
 
     win.show();
     nana::exec();
