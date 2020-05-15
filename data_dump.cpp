@@ -25,6 +25,7 @@
 #include <chrono>
 #include "nana/gui.hpp"
 #include "nana/gui/widgets/label.hpp"
+#include "nana/gui/widgets/picture.hpp"
 #include "nana/gui/widgets/treebox.hpp"
 #include "nana/gui/widgets/textbox.hpp"
 #include "bytell_hash_map.hpp"
@@ -671,6 +672,11 @@ struct VM
         VM *vm = (VM *)lua_getuserdata(L);
         return vm->require();
     }
+
+    void resolve()
+    {
+
+    }
     int require()
     {
         // take a copy so we can turn . -> /
@@ -709,8 +715,6 @@ struct VM
             requested.replace_extension(".lua");
             requested.make_preferred();
 
-
-
             fs::path current = ar.source + 1;
 
             fs::path current_dir = current.parent_path();
@@ -742,6 +746,23 @@ struct VM
 
     operator lua_State *() {
         return L;
+    }
+
+    fs::path resolve_mod_path(const std::string &raw)
+    {
+        fs::path path = raw;
+        auto it = path.begin();
+        auto root = ws2s(it->wstring());
+        it++;
+        root = root.substr(2, root.length() - 4);
+
+        fs::path actual_base = mod_name_to_mod[root]->path;
+        for (; it != path.end(); it++)
+        {
+            actual_base /= *it;
+        }
+        
+        return actual_base;
     }
 };
 
@@ -809,7 +830,7 @@ std::string to_string(const FValue &value)
     return "!<>";
 }
 
-
+nana::form *win;
 
 struct factorio
 {
@@ -820,6 +841,17 @@ struct factorio
         using Order = string;
 
         using Energy = string; //bleh
+
+        struct Icon
+        {
+            fs::path file_path;
+            Icon() = default;
+            Icon(const FObject &obj)
+            {
+                std::string path = std::get<std::string>(obj.child("icon"));
+                file_path = vm.resolve_mod_path(path);
+            }
+        };
 
         struct Color {
             double r = 0;
@@ -852,8 +884,9 @@ struct factorio
             ItemPrototype(const FObject &obj) : PrototypeBase(obj)
             {
                 ld(stack_size, obj);
-                // ldint(stack_size);
+                icon = Icon(obj);
             }
+            Icon icon;
             // icons, icon, icon_size (IconSpecification)	::	IconSpecification
             uint32_t stack_size;
             string burnt_result;
@@ -917,6 +950,7 @@ static void apply_filter(const std::string &filter, nana::treebox::item_proxy no
     }
 }
 
+static nana::picture *sprite_preview = nullptr;
 static nana::timer update_filtering;
 static nana::treebox *data_raw_tree = nullptr;
 static nana::textbox *search = nullptr;
@@ -951,21 +985,27 @@ static void trigger_do_filtering()
 int main()
 {
 
-    nana::form win{nana::API::make_center(1024, 1024), nana::appear::decorate<nana::appear::taskbar>()};
+    win = new nana::form{nana::API::make_center(1024, 1024), nana::appear::decorate<nana::appear::taskbar>()};
 
-    nana::label label(win);
+    nana::label label(*win);
     label.caption("Hello");
     label.bgcolor(nana::colors::blue_violet);
 
-    data_raw_tree = new nana::treebox(win);
+    data_raw_tree = new nana::treebox(*win);
 
-    nana::place layout(win);
-    layout.div("vert<search weight=40><mid>");
-    // layout["mid"] << label;
+    nana::place layout(*win);
+    layout.div("< <vert left weight=300<search weight=40><mid>>|<<rightno>>");
     layout["mid"] << *data_raw_tree;
 
-    search = new nana::textbox(win);
+    search = new nana::textbox(*win);
     search->multi_lines(false);
+    layout["search"] << *search;
+
+    sprite_preview = new nana::picture(*win);
+    sprite_preview->caption("hello");
+    layout["rightno"] << *sprite_preview;
+
+    layout.collocate();
 
     auto root_unfiltered = data_raw_tree->insert("raw", "data.raw");
 
@@ -1008,11 +1048,7 @@ int main()
         }
     });
 
-    layout["search"] << *search;
-
     ska::bytell_hash_map<std::string, factorio::data::ItemPrototype> items;
-
-    layout.collocate();
 
     FKeyValue raw("data.raw", vm.get_data_raw());
 
@@ -1020,6 +1056,8 @@ int main()
     visual_stack.push_front(root_unfiltered);
 
     std::string path = "data/raw";
+
+    nana::paint::image preview_image;
 
     ska::bytell_hash_map<std::string, std::function<void(const std::vector<std::string> &path)>> prototype_factories;
     prototype_factories["data/raw/item"] = [&](const std::vector<std::string> &path) {
@@ -1037,8 +1075,11 @@ int main()
 
         factorio::data::ItemPrototype proto(item);
 
-        fprintf(stderr, "KLJSAKLDJKLASJD\n");
-
+        preview_image.close();
+        if (preview_image.open(proto.icon.file_path))
+        {
+            sprite_preview->load(preview_image);
+        }
     };
 
 
@@ -1109,7 +1150,7 @@ int main()
     });
     data_raw_tree->auto_draw(true);
 
-    win.show();
+    win->show();
     nana::exec();
     // lua_getglobal(L, "data");
     // std::cout << lua_tostring(L, -1);
