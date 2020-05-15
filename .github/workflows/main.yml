@@ -24,6 +24,11 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+    - name: apt helper action
+      uses: ryankurte/action-apt@v0.1.0
+      with:
+        packages: xorg-dev
+    
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
         
