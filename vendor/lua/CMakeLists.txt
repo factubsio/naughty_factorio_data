@@ -29,4 +29,4 @@ endif()
 # target_compile_options(Lua PRIVATE /FI
 # ${CMAKE_CURRENT_LIST_DIR}/override_printf.h )
 
-# target_link_libraries(Lua trio)
+# target_link_libraries(Lua trio m)
