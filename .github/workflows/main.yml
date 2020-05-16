@@ -49,7 +49,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake -B build --build
+          cmake --build build
 
       # - name: Configure and Build
       #   uses: lukka/run-cmake@v2.5
