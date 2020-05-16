@@ -27,7 +27,6 @@ jobs:
             name: "Ubuntu Latest GCC", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             cc: "gcc", cxx: "g++"
-            environment_script: "echo skipping "
           }
           }
         - {
