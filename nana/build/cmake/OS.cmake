@@ -8,7 +8,7 @@ if(WIN32)
     # Global MSVC definitions. You may prefer the hand-tuned sln and projects from the nana repository.
     if(MSVC)
         option(MSVC_USE_MP "Set to ON to build nana with the /MP option (Visual Studio 2005 and above)." ON)
-        option(MSVC_USE_STATIC_RUNTIME "Set to ON to build nana with the /MT(d) option." ON)
+        option(MSVC_USE_STATIC_RUNTIME "Set to ON to build nana with the /MT(d) option." OFF)
 
         # Change the MSVC Compiler flags
         if(MSVC_USE_MP)

@@ -133,7 +133,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/build/cmake/shared_libs.cmake)    # static vs 
 include(${CMAKE_CURRENT_LIST_DIR}/build/cmake/compilers.cmake)      # VC, gcc, clang
 
 ############# Optional libraries    #####################
-# include(${CMAKE_CURRENT_LIST_DIR}/build/cmake/enable_png.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/build/cmake/enable_png.cmake)
 # include(${CMAKE_CURRENT_LIST_DIR}/build/cmake/enable_jpeg.cmake)
 # include(${CMAKE_CURRENT_LIST_DIR}/build/cmake/enable_audio.cmake)
 # include(${CMAKE_CURRENT_LIST_DIR}/build/cmake/select_filesystem.cmake)

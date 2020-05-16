@@ -1,5 +1,5 @@
-option(NANA_CMAKE_ENABLE_PNG "Enable the use of PNG" OFF)
-option(NANA_CMAKE_LIBPNG_FROM_OS "Use libpng from operating system." ON)
+option(NANA_CMAKE_ENABLE_PNG "Enable the use of PNG" ON)
+option(NANA_CMAKE_LIBPNG_FROM_OS "Use libpng from operating system." OFF)
 
 # todo: decide - PUBLIC vs PRIVATE
 
@@ -15,6 +15,6 @@ if(NANA_CMAKE_ENABLE_PNG)
             # target_compile_definitions  (nana          PUBLIC USE_LIBPNG_FROM_OS)
         endif()
     else()
-        target_link_libraries(nana PUBLIC png)  # provided by nana?
+        target_link_libraries(nana PUBLIC png_static)  # provided by nana?
     endif()
 endif()
