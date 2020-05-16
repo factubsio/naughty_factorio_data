@@ -37,7 +37,9 @@ jobs:
 
       - name: Setup vcvars
         if: ${{ matrix.config.environment_script != '' }}
-        run: call "${{ matrix.config.environment_script }}"
+        run: |
+          dir "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/"
+          call "${{ matrix.config.environment_script }}"
 
       - name: Install xorg-dev
         if: ${{ matrix.config.os == 'ubuntu-latest' }}
