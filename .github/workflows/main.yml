@@ -15,6 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        build_type: [Debug, Release]
         config:
         - {
             name: "Windows Latest MSVC", artifact: "Windows-MSVC.tar.xz",
