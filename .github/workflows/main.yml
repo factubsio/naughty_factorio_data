@@ -45,7 +45,11 @@ jobs:
           CXX: ${{ matrix.config.cxx }}
           CC: ${{ matrix.config.cc }}
         run: |
-          cmake . -B build
+          cmake . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+      - name: Build
+        run: |
+          cmake -B build --build
 
       # - name: Configure and Build
       #   uses: lukka/run-cmake@v2.5
