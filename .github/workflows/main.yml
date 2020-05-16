@@ -12,13 +12,13 @@ jobs:
         build_type: [Debug, Release]
         config:
         - {
-            name: "Windows Latest MSVC", artifact: "Windows-MSVC.tar.xz",
+            name: "Windows MSVC", artifact: "Windows-MSVC.tar.xz",
             os: windows-latest,
             cc: "cl.exe", cxx: "cl.exe",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
         - {
-            name: "Ubuntu Latest GCC", artifact: "Linux.tar.xz",
+            name: "Ubuntu GCC", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             cc: "gcc-8", cxx: "g++-8"
           }
@@ -27,20 +27,20 @@ jobs:
             os: ubuntu-latest,
             cc: "clang-9", cxx: "clang++-9"
           }
-        - {
-            name: "macOS Latest Clang", artifact: "macOS.tar.xz",
-            os: macos-latest,
-            cc: "clang", cxx: "clang++"
-          }
+        # - {
+        #     name: "macOS Latest Clang", artifact: "macOS.tar.xz",
+        #     os: macos-latest,
+        #     cc: "clang", cxx: "clang++"
+        #   }
 
     steps:
 
-      - name: Setup vcvars
-        if: ${{ matrix.config.environment_script != '' }}
-        shell: cmd
-        run: |
-          dir "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/"
-          call "${{ matrix.config.environment_script }}"
+      # - name: Setup vcvars
+      #   if: ${{ matrix.config.environment_script != '' }}
+      #   shell: cmd
+      #   run: |
+      #     dir "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/"
+      #     call "${{ matrix.config.environment_script }}"
 
       - name: Install xorg-dev
         if: ${{ matrix.config.os == 'ubuntu-latest' }}
@@ -48,18 +48,15 @@ jobs:
 
       - uses: actions/checkout@v1
 
-      - name: Print environment
-        env:
-          CXX: ${{ matrix.config.cxx }}
-          CC: ${{ matrix.config.cc }}
-        run: |
-         echo "${{ matrix.config.name }} ${{ matrix.build_type }}"
-         echo "CXX: $CXX"
-         echo "CC: $CC"
+      - name: Restore artifacts, or run vcpkg, build and cache artifacts
+        uses: lukka/run-vcpkg@v2
 
       - name: Configure and Build
         uses: lukka/run-cmake@v2.5
+        with:
+          useVcpkgToolChainFile: true
         env:
           CXX: ${{ matrix.config.cxx }}
           CC: ${{ matrix.config.cc }}
+
       
