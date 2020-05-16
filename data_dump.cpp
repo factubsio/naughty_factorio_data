@@ -47,6 +47,16 @@ struct identity {
 struct FObject;
 using FValue = std::variant<std::monostate, FObject *, std::string, uint64_t, double, bool>;
 
+double to_double(const FValue &value)
+{
+    if (auto num = std::get_if<double>(&value); num)
+    {
+        return *num;
+    }
+        
+    return double(std::get<uint64_t>(value));
+}
+
 
 FILE *log_ = nullptr;
 
@@ -301,11 +311,14 @@ std::string weakly_normalize(const fs::path &path)
 }
 
 
+#define STR_(x) #x
+#define STR(x) STR_(x)
+
 struct VM
 {
     lua_State *L = nullptr;
 
-    const fs::path game_dir = "FACTORIOPATH";
+    const fs::path game_dir = STR(FACTORIOPATH);
     const fs::path corelib = game_dir / "data" / "core";
     const fs::path baselib = game_dir / "data" / "base";
     const fs::path mod_dir = game_dir / "mods";
@@ -915,9 +928,29 @@ double parse_fval(double &out, const FValue &value)
 template<>
 factorio::data::Color parse_fval(factorio::data::Color &out, const FValue &value)
 {
-    if (auto array = std::get_if<FObject *>(&value); array)
+    // reset to default
+    out = factorio::data::Color();
+    if (auto arr_ptr = std::get_if<FObject *>(&value); arr_ptr)
     {
-        printf("here\n");
+        auto array = *arr_ptr;
+        if (auto index1 = array->child("1"); index1.index())
+        {
+            out.r = to_double(index1);
+            out.g = to_double(array->child("2"));
+            out.b = to_double(array->child("3"));
+
+            if (auto index3 = array->child("3"); index3.index())
+            {
+                out.a = to_double(index3);
+            }
+        }
+        else
+        {
+            if (auto x = array->child("r"); x.index()) out.r = to_double(x);
+            if (auto x = array->child("g"); x.index()) out.g = to_double(x);
+            if (auto x = array->child("b"); x.index()) out.b = to_double(x);
+            if (auto x = array->child("a"); x.index()) out.a = to_double(x);
+        }
     }
     else
     {
