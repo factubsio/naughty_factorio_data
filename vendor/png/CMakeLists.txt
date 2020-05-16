@@ -271,8 +271,12 @@ endif()
 find_program(AWK NAMES gawk awk)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+if(WIN32)
+  MESSAGE("Force use of pregenerated conf files on windows")
+  UNSET(AWK)
+endif(WIN32)
 
-if(TRUE)
+if(NOT AWK OR ANDROID)
   # No awk available to generate sources; use pre-built pnglibconf.h
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/pnglibconf.h.prebuilt
                  ${CMAKE_CURRENT_BINARY_DIR}/pnglibconf.h)
