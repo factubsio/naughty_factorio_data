@@ -29,9 +29,6 @@ jobs:
           }
 
     steps:
-      env:
-        CXX: ${{ matrix.config.cxx }}
-        CC: ${{ matrix.config.cc }}
 
       - name: Setup vcvars
         if: ${{ matrix.config.environment_script != '' }}
@@ -40,6 +37,9 @@ jobs:
       - uses: actions/checkout@v1
 
       - name: Print environment
+        env:
+          CXX: ${{ matrix.config.cxx }}
+          CC: ${{ matrix.config.cc }}
         run: |
          echo "${{ matrix.config.name }} ${{ matrix.build_type }}"
          echo "CXX: $CXX"
