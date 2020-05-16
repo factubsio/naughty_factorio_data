@@ -34,6 +34,12 @@
 #endif
 
 
+#if defined(VERBOSE_LOGGING)
+#define verbose_log fprintf
+#else
+#define verbose_log
+#endif
+
 namespace fs = std::filesystem;
 
 template<typename T>
@@ -417,12 +423,14 @@ struct VM
 
     VM()
     {
-        log_ = fopen("C:/tmp/log.txt", "w");
+
+#if defined(VERBOSE_LOGGING)
+        std::string logpath = ws2s(fs::temp_directory_path()/"log.txt");
+        log_ = fopen(logpath.c_str(), "w");
+#endif
         L = lua_newstate(l_alloc, this);
         const fs::path lualib = game_dir / "data" / "core" / "lualib";
         std::cout << "lualib: loading\n";
-
-
 
         {
             Mod *core = new Mod();
@@ -540,7 +548,7 @@ struct VM
         {
             case LUA_TSTRING:
             {
-                fprintf(log_, " [string]\n");
+                verbose_log(log_, " [string]\n");
                 return std::string(lua_tostring(L, index));
             }
             case LUA_TNUMBER:
@@ -548,7 +556,7 @@ struct VM
                 int isnum;
                 if (lua_Integer d = lua_tointegerx(L, index, &isnum); isnum)
                 {
-                    fprintf(log_, " [num/int]\n");
+                    verbose_log(log_, " [num/int]\n");
                     return uint64_t(d);
                 }
                 else
@@ -559,13 +567,13 @@ struct VM
             }
             case LUA_TBOOLEAN:
             {
-                fprintf(log_, " [bool]\n");
+                verbose_log(log_, " [bool]\n");
                 return bool(lua_toboolean(L, index));
                 break;
             }
             case LUA_TTABLE:
             {
-                fprintf(log_, " [table]\n");
+                verbose_log(log_, " [table]\n");
 
                 FObject *obj = new FObject();
                 int i = 0;
@@ -573,9 +581,12 @@ struct VM
                 while (lua_next(L, -2) != 0)
                 {
                     std::string key = lua_key(-2);
+
+                    #if defined(VERBOSE_LOGGING)
                     for (int indent = 0; indent < depth; indent++)
                         fprintf(log_, "  ");
-                    fprintf(log_, "loading %s.%s", path.c_str(), key.c_str());
+                    #endif
+                    verbose_log(log_, "loading %s.%s", path.c_str(), key.c_str());
                     FValue value = lua_fvalue(-1, path + "." + key, depth + 1);
 
                     obj->children.emplace_back(key, value);
@@ -600,7 +611,9 @@ struct VM
 
         FValue value = lua_fvalue(-1, "data.raw", 0);
 
+#if defined(VERBOSE_LOGGING)
         fflush(log_);
+#endif
         return std::get<FObject *>(value);
     }
 
@@ -1115,7 +1128,7 @@ static void do_filtering(const std::chrono::steady_clock::time_point &now)
     update_filtering.stop();
 
     auto end = std::chrono::steady_clock::now();
-    fprintf(stderr, "elapsed: %ldms\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count());
+    fprintf(stderr, "elapsed: %lldms\n", int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count()));
 }
 
 static void trigger_do_filtering()
