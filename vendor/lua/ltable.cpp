@@ -167,9 +167,10 @@ static int findindex (lua_State *L, Table *t, StkId key) {
   }
 }
 
-int luaH_foreach (lua_State *L, Table *t, TableItCallback callback) {
+int luaH_foreach (lua_State *L, Table *t, void *obj, TableItCallback callback) {
   lua_pushnil(L);
-  StkId key = L->top - 1;
+  lua_pushnil(L);
+  StkId key = L->top -2;
   int found = -1;
   int i;
   Node *n;
@@ -178,7 +179,7 @@ int luaH_foreach (lua_State *L, Table *t, TableItCallback callback) {
     if (!ttisnil(&t->array[i])) {  /* a non-nil value? */
       setnvalue(key, cast_num(i+1));
       setobj2s(L, key+1, &t->array[i]);
-      callback(L);
+      callback(L, obj);
     }
   }
 
@@ -188,10 +189,11 @@ int luaH_foreach (lua_State *L, Table *t, TableItCallback callback) {
     if (!ttisnil(gval(n))) {
       setobj2s(L, key, gkey(n));
       setobj2s(L, key+1, gval(n));
-      callback(L);
+      callback(L, obj);
     }
     n = n->next;
   }
+  lua_pop(L, 2);
   return 0;  /* no more elements */
 }
 

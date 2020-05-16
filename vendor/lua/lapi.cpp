@@ -1244,15 +1244,14 @@ LUA_API int lua_error (lua_State *L) {
   return 0;  /* to avoid warnings */
 }
 
-LUA_API int lua_foreach(lua_State *L, int idx, TableItCallback callback)
+LUA_API int lua_foreach(lua_State *L, int idx, void *obj, TableItCallback callback)
 {
   StkId t;
   lua_lock(L);
   checkstack_locked(L, 1);
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
-  luaH_foreach(L, hvalue(t), callback);
-  L->top -= 1;  /* remove key */
+  luaH_foreach(L, hvalue(t), obj, callback);
   lua_unlock(L);
   return 0;
 }

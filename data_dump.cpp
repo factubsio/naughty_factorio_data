@@ -42,6 +42,23 @@
 #define verbose_log
 #endif
 
+struct prof
+{
+    std::chrono::steady_clock::time_point start_time, end_time;
+    void start() {
+        start_time = std::chrono::steady_clock::now();
+    }
+    auto elapsed() const { return end_time - start_time;  }
+    auto stop() {
+        end_time = std::chrono::steady_clock::now();
+        return elapsed();
+    }
+
+    void print(const std::string &name)
+    {
+        fprintf(stderr, "elapsed (%s): %" PRId64 "ms\n", name.c_str(), int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed()).count()));
+    }
+};
 namespace fs = std::filesystem;
 
 template<typename T>
@@ -504,7 +521,7 @@ struct VM
     }
 
 
-    std::string lua_key(int index)
+    static std::string lua_key(lua_State *L, int index)
     {
         int type = lua_type(L, index);
 
@@ -539,7 +556,32 @@ struct VM
         abort();
     }
 
-    FValue lua_fvalue(int index, const std::string &path, int depth)
+#if defined(VERBOSE_LOGGING)
+#define lua_fvalue_params lua_State *L, int index, const std::string &path, int depth
+#else
+#define lua_fvalue_params lua_State *L, int index
+#endif    
+
+    static void cb(lua_State *L, void *obj_)
+    {
+        FObject* obj = (FObject*)obj_;
+        std::string key = lua_key(L, -2);
+
+#if defined(VERBOSE_LOGGING)
+        for (int indent = 0; indent < depth; indent++)
+            fprintf(log_, "  ");
+
+        verbose_log(log_, "loading %s.%s", path.c_str(), key.c_str());
+        FValue value = lua_fvalue(-1, path + "." + key, depth + 1);
+#else
+        FValue value = lua_fvalue(L, -1);
+#endif
+
+        obj->children.emplace_back(key, value);
+
+    }
+
+    static FValue lua_fvalue(lua_fvalue_params)
     {
         int type = lua_type(L, index);
 
@@ -576,22 +618,30 @@ struct VM
 
                 FObject *obj = new FObject();
                 int i = 0;
-                lua_pushnil(L); /* first key  (3) */
+#define USE_FOREACH 0
+#if USE_FOREACH
+                lua_foreach(L, -1, obj, cb);
+#else
+                lua_pushnil(L);
                 while (lua_next(L, -2) != 0)
                 {
-                    std::string key = lua_key(-2);
+                    std::string key = lua_key(L, -2);
 
-                    #if defined(VERBOSE_LOGGING)
+#if defined(VERBOSE_LOGGING)
                     for (int indent = 0; indent < depth; indent++)
                         fprintf(log_, "  ");
-                    #endif
+
                     verbose_log(log_, "loading %s.%s", path.c_str(), key.c_str());
                     FValue value = lua_fvalue(-1, path + "." + key, depth + 1);
+#else
+                    FValue value = lua_fvalue(L, -1);
+#endif
 
                     obj->children.emplace_back(key, value);
                     lua_pop(L, 1);
                     i++;
                 }
+#endif
                 obj->sort();
                 return obj;
             }
@@ -605,14 +655,21 @@ struct VM
 
     FObject *get_data_raw()
     {
+        prof get_data;
+        
         lua_getglobal(L, "data"); //1
         lua_getfield(L, 1, "raw"); //2
-
-        FValue value = lua_fvalue(-1, "data.raw", 0);
+        
+        get_data.start();
 
 #if defined(VERBOSE_LOGGING)
+        FValue value = lua_fvalue(-1, "data.raw", 0);
         fflush(log_);
+#else
+        FValue value = lua_fvalue(L, -1);
 #endif
+        get_data.stop();
+        get_data.print("convert data.raw");
         return std::get<FObject *>(value);
     }
 
@@ -1110,7 +1167,7 @@ static nana::timer update_filtering;
 static nana::treebox *data_raw_tree = nullptr;
 static nana::textbox *search = nullptr;
 static bool filter_pending = false;
-static const std::chrono::milliseconds filter_throttle_interval_ms(500);
+static const std::chrono::milliseconds filter_throttle_interval_ms(50);
 
 static void do_filtering(const std::chrono::steady_clock::time_point &now)
 {
@@ -1512,3 +1569,4 @@ int main()
 
     // std::cout << "Hello" << "\n";
 }
+
