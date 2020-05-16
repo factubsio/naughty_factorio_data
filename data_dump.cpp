@@ -496,9 +496,6 @@ struct VM
         call_file(cwd / "bootstrap.lua");
         lua_pop(L, 1);
 
-        call_file(cwd / "test.lua");
-        lua_pop(L, 1);
-
         call_file(corelib /"lualib"/ "dataloader.lua");
         call_file(corelib /"data.lua");
         call_file(baselib /"data.lua");
@@ -1124,13 +1121,21 @@ static void do_filtering(const std::chrono::steady_clock::time_point &now)
 
     data_raw_tree->auto_draw(false);
     apply_filter(filter, root);
+    auto mid = std::chrono::steady_clock::now();
     data_raw_tree->auto_draw(true);
     last_updated = now;
     filter_pending = false;
-    update_filtering.stop();
 
+    auto rendered = std::chrono::steady_clock::now();
+
+    update_filtering.stop();
     auto end = std::chrono::steady_clock::now();
-    fprintf(stderr, "elapsed: %" PRId64 "ms\n", int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count()));
+
+    fprintf(stderr, "elapsed     (filtering): %" PRId64 "ms\n", int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(mid - now).count()));
+    fprintf(stderr, "elapsed     (rendering): %" PRId64 "ms\n", int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(rendered - mid).count()));
+    fprintf(stderr, "elapsed    (stop clock): %" PRId64 "ms\n", int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(end - rendered).count()));
+
+    fprintf(stderr, "elapsed         (total): %" PRId64 "ms\n", int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count()));
 }
 
 static void trigger_do_filtering()
