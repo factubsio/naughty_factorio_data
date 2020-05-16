@@ -25,6 +25,8 @@
 #include <variant>
 #include <vector>
 #include <zip.h>
+#include <cstdint>
+#include <cinttypes>
 
 #ifdef __linux__
 #include <unistd.h>
@@ -1128,7 +1130,7 @@ static void do_filtering(const std::chrono::steady_clock::time_point &now)
     update_filtering.stop();
 
     auto end = std::chrono::steady_clock::now();
-    fprintf(stderr, "elapsed: %lldms\n", int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count()));
+    fprintf(stderr, "elapsed: %" PRId64 "ms\n", int64_t(std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count()));
 }
 
 static void trigger_do_filtering()
@@ -1175,7 +1177,7 @@ static void trigger_do_filtering()
 
         void row(const std::string &key, const std::string &height)
         {
-            heights.emplace_back(default_height);
+            heights.emplace_back(height);
             group->create_child<nana::label>("key_")->caption(key);
         }
 
