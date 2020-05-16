@@ -25,6 +25,8 @@
 #include <chrono>
 #include "nana/gui.hpp"
 #include "nana/gui/widgets/label.hpp"
+#include "nana/gui/widgets/group.hpp"
+#include "nana/gui/widgets/listbox.hpp"
 #include "nana/gui/widgets/picture.hpp"
 #include "nana/gui/widgets/treebox.hpp"
 #include "nana/gui/widgets/textbox.hpp"
@@ -36,6 +38,7 @@ struct FObject;
 using FValue = std::variant<std::monostate, FObject *, std::string, uint64_t, double, bool>;
 
 
+FILE *log_ = nullptr;
 
 struct FKeyValue
 {
@@ -53,6 +56,7 @@ FValue nil;
 
 struct FObject
 {
+    enum class visit_result { DESCEND, CONTINUE, EXIT, };
     static FObject empty_object;
     std::string type;
 
@@ -108,9 +112,11 @@ struct FObject
         {
             if (auto object = std::get_if<FObject *>(&key.value); object)
             {
-                callback(1, key);
-                (*object)->visit(callback);
-                callback(-1, key);
+                if (callback(1, key) == FObject::visit_result::DESCEND)
+                {
+                    (*object)->visit(callback);
+                    callback(-1, key);
+                }
             }
             else
             {
@@ -389,6 +395,7 @@ struct VM
 
     VM()
     {
+        log_ = fopen("C:/tmp/log.txt", "w");
         L = lua_newstate(l_alloc, this);
         const fs::path lualib = game_dir / "data" / "core" / "lualib";
         std::cout << "lualib: loading\n";
@@ -465,24 +472,10 @@ struct VM
         call_file(baselib /"data.lua");
 
         lua_settop(L, 0);
-
-        // std::cout << "table size: " << std::to_string(lua_tablesize(L, 2, 0)) << "\n";
-
-        // std::cout<< "====  data.raw.next   =============================================\n";
-
-        // std::cout<< "====  data.raw.foreach   =============================================\n";
-
-        // lua_foreach(L, -1, [](lua_State *L) {
-        //     printf("%s\n", lua_tostring(L, -1));
-        //     // printf("%s - %s\n",
-        //     //        lua_typename(L, lua_type(L, -2)),
-        //     //        lua_typename(L, lua_type(L, -1)));
-        // });
-
-        // std::cout<< "=============================================================\n";
     }
 
-    FValue lua_fvalue(int index)
+    
+    std::string lua_key(int index)
     {
         int type = lua_type(L, index);
 
@@ -497,27 +490,71 @@ struct VM
                 int isnum;
                 if (lua_Integer d = lua_tointegerx(L, index, &isnum); isnum)
                 {
+                    return std::to_string(uint64_t(d));
+                }
+                else
+                {
+                    return std::to_string(double(lua_tonumber(L, index)));
+                }
+            }
+            case LUA_TBOOLEAN:
+            {
+                return lua_toboolean(L, index) ? "true" : "false" ;
+                break;
+            }
+            default:
+            {
+                abort();
+            }
+        }
+        abort();
+    }
+
+    FValue lua_fvalue(int index, const std::string &path, int depth)
+    {
+        int type = lua_type(L, index);
+
+        switch (type)
+        {
+            case LUA_TSTRING:
+            {
+                fprintf(log_, " [string]\n");
+                return std::string(lua_tostring(L, index));
+            }
+            case LUA_TNUMBER:
+            {
+                int isnum;
+                if (lua_Integer d = lua_tointegerx(L, index, &isnum); isnum)
+                {
+                    fprintf(log_, " [num/int]\n");
                     return uint64_t(d);
                 }
                 else
                 {
+                    fprintf(log_, " [num/double]\n");
                     return double(lua_tonumber(L, index));
                 }
             }
             case LUA_TBOOLEAN:
             {
+                fprintf(log_, " [bool]\n");
                 return bool(lua_toboolean(L, index));
                 break;
             }
             case LUA_TTABLE:
             {
+                fprintf(log_, " [table]\n");
+
                 FObject *obj = new FObject();
                 int i = 0;
                 lua_pushnil(L); /* first key  (3) */
                 while (lua_next(L, -2) != 0)
                 {
-                    std::string key = lua_value(-2);
-                    FValue value = lua_fvalue(-1);
+                    std::string key = lua_key(-2);
+                    for (int indent = 0; indent < depth; indent++)
+                        fprintf(log_, "  ");
+                    fprintf(log_, "loading %s.%s", path.c_str(), key.c_str());
+                    FValue value = lua_fvalue(-1, path + "." + key, depth + 1);
 
                     obj->children.emplace_back(key, value);
                     lua_pop(L, 1);
@@ -534,62 +571,14 @@ struct VM
         abort();
     }
 
-    std::string lua_value(int index)
-    {
-        std::string ret = "!<bad>";
-        if (lua_type(L, index) == LUA_TSTRING)
-        {
-            ret = lua_tostring(L, index);
-        }
-        else if (lua_type(L, index) == LUA_TNUMBER)
-        {
-            ret = std::to_string(lua_tonumber(L, index));
-        }
-        else if (lua_type(L, index) == LUA_TBOOLEAN)
-        {
-            ret = lua_toboolean(L, index) ? "true" : "false";
-        }
-        else
-        {
-            std::cerr << "!!!non number or string key!!!";
-            exit(-1);
-        }
-        return ret;
-
-    }
-
-    // template<typename T>
-    // void iterate_table(T callback)
-    // {
-    //     int i = 0;
-    //     lua_pushnil(L);  /* first key  (3) */
-    //     while (lua_next(L, -2) != 0) {
-    //         std::string key = lua_value(-2);
-
-    //         if (lua_istable(L, -1))
-    //         {
-    //             callback(1, key, key);
-    //             iterate_table(callback);
-    //             callback(-1, "", "");
-    //         }
-    //         else
-    //         {
-    //             callback(0, key, lua_fvalue(-1));
-    //         }
-    //         // remove value...
-    //         lua_pop(L, 1);
-    //         i++;
-    //     }
-
-    // }
-
     FObject *get_data_raw()
     {
         lua_getglobal(L, "data"); //1
         lua_getfield(L, 1, "raw"); //2
 
-        FValue value = lua_fvalue(-1);
+        FValue value = lua_fvalue(-1, "data.raw", 0);
 
+        fflush(log_);
         return std::get<FObject *>(value);
     }
 
@@ -770,6 +759,104 @@ struct VM
 VM vm;
 
 
+nana::form *win;
+
+struct factorio
+{
+    struct data
+    {
+        using string = std::string;
+        using LocalisedString = string;
+        using Order = string;
+
+        using Energy = string; //bleh
+
+        struct Icon
+        {
+            fs::path file_path;
+            Icon() = default;
+            Icon(const FObject &obj)
+            {
+                std::string path = std::get<std::string>(obj.child("icon"));
+                file_path = vm.resolve_mod_path(path);
+            }
+        };
+
+        struct Color {
+            double r = 0;
+            double g = 0;
+            double b = 0;
+            double a = 1;
+        };
+
+        template<typename T, int min, int max>
+        struct array_opt
+        {
+            int count = 0;
+            T arr[max];
+        };
+
+        #define ld(x, obj) parse_fval(x, obj.child(#x))
+
+        struct PrototypeBase
+        {
+            PrototypeBase(const FObject &obj);
+            string name;
+            string type;
+            LocalisedString localised_description;
+            LocalisedString localised_name;
+            Order order;
+        };
+
+        struct TileEffectPrototype
+        {
+            TileEffectPrototype(const FObject &obj);
+            array_opt<double, 1, 2> animation_scale;
+            double animation_speed;
+            array_opt<double, 1, 2> dark_threshold;
+            Color foam_color;
+            double foam_color_multiplier;
+            string name;
+            array_opt<double, 1, 2> reflection_threshold;
+            Color specular_lightness;
+            array_opt<double, 1, 2> specular_threshold;
+            // texture ::Sprite
+            double tick_scale;
+            string type;
+            double far_zoom;
+            double near_zoom;
+        };
+
+        struct ItemPrototype : PrototypeBase
+        {
+            ItemPrototype(const FObject &obj);
+            Icon icon;
+            // icons, icon, icon_size (IconSpecification)	::	IconSpecification
+            uint32_t stack_size;
+            string burnt_result;
+            uint32_t default_request_amount;
+            // dark_background_icons, dark_background_icon, icon_size (IconSpecification)	::	IconSpecification (optional)
+            // flags	::	ItemPrototypeFlags (optional)
+            double fuel_acceleration_multiplier;
+            string fuel_category;
+            double fuel_emissions_multiplier;
+            Color fuel_glow_color;
+            double fuel_top_speed_multiplier;
+            Energy fuel_value;
+            // pictures	::	SpriteVariations (optional)
+            // place_as_tile	::	PlaceAsTile (optional)
+            string place_result;
+            string placed_as_equipment_result;
+            // rocket_launch_product	::	ItemProductPrototype (optional)
+            // rocket_launch_products	::	table (array) of ItemProductPrototype (optional)
+            string subgroup;
+            uint32_t wire_count;
+        };
+    };
+};
+
+
+
 template<typename T>
 T parse_fval(T& out, const FValue &value);
 
@@ -797,6 +884,59 @@ uint32_t parse_fval(uint32_t &out, const FValue &value)
     else
     {
         out = -1;
+    }
+    return out;
+}
+
+template<>
+double parse_fval(double &out, const FValue &value)
+{
+    if (auto num = std::get_if<double>(&value); num)
+    {
+        out = double(*num);
+    }
+    else
+    {
+        out = -1;
+    }
+    return out;
+}
+
+
+template<>
+factorio::data::Color parse_fval(factorio::data::Color &out, const FValue &value)
+{
+    if (auto array = std::get_if<FObject *>(&value); array)
+    {
+        printf("here\n");
+    }
+    else
+    {
+        out = {-1, -1, -1, -1};
+    }
+    return out;
+}
+
+template<int min, int max>
+factorio::data::array_opt<double, min, max> parse_fval(factorio::data::array_opt<double, min, max> &out, const FValue &value)
+{
+    out.count = 0;
+    if (auto arr_ptr = std::get_if<FObject *>(&value); arr_ptr)
+    {
+        auto array = *arr_ptr;
+        for (const auto &kv : array->children)
+        {
+            parse_fval(out.arr[out.count], kv.value);
+            out.count++;
+            if (out.count == max)
+                abort();
+        }
+        if (out.count < min)
+            abort();
+    }
+    else
+    {
+        // out = {-1, -1, -1, -1};
     }
     return out;
 }
@@ -830,86 +970,46 @@ std::string to_string(const FValue &value)
     return "!<>";
 }
 
-nana::form *win;
-
-struct factorio
+factorio::data::TileEffectPrototype::TileEffectPrototype(const FObject &obj)
 {
-    struct data
-    {
-        using string = std::string;
-        using LocalisedString = string;
-        using Order = string;
+    ld(animation_scale, obj);
+    ld(animation_speed, obj);
+    ld(dark_threshold, obj);
+    ld(foam_color, obj);
+    ld(foam_color_multiplier, obj);
+    ld(name, obj);
+    ld(reflection_threshold, obj);
+    ld(specular_lightness, obj);
+    ld(specular_threshold, obj);
+    // ld(texture, obj);
+    ld(tick_scale, obj);
+    ld(type, obj);
+    ld(far_zoom, obj);
+    ld(near_zoom, obj);
+}
 
-        using Energy = string; //bleh
 
-        struct Icon
-        {
-            fs::path file_path;
-            Icon() = default;
-            Icon(const FObject &obj)
-            {
-                std::string path = std::get<std::string>(obj.child("icon"));
-                file_path = vm.resolve_mod_path(path);
-            }
-        };
+factorio::data::ItemPrototype::ItemPrototype(const FObject &obj) : PrototypeBase(obj)
+{
 
-        struct Color {
-            double r = 0;
-            double g = 0;
-            double b = 0;
-            double a = 1;
-        };
+    ld(fuel_acceleration_multiplier, obj);
+    ld(fuel_category, obj);
+    ld(fuel_emissions_multiplier, obj);
+    ld(fuel_glow_color, obj);
+    ld(fuel_top_speed_multiplier, obj);
+    ld(fuel_value, obj);
 
-        #define ld(x, obj) parse_fval(x, obj.child(#x))
+    icon = Icon(obj);
+}
 
-        struct PrototypeBase
-        {
-            PrototypeBase(const FObject &obj)
-            {
-                ld(name, obj);
-                ld(type, obj);
-                ld(localised_description, obj);
-                ld(localised_name, obj);
-                ld(order, obj);
-            }
-            string name;
-            string type;
-            LocalisedString localised_description;
-            LocalisedString localised_name;
-            Order order;
-        };
-
-        struct ItemPrototype : PrototypeBase
-        {
-            ItemPrototype(const FObject &obj) : PrototypeBase(obj)
-            {
-                ld(stack_size, obj);
-                icon = Icon(obj);
-            }
-            Icon icon;
-            // icons, icon, icon_size (IconSpecification)	::	IconSpecification
-            uint32_t stack_size;
-            string burnt_result;
-            uint32_t default_request_amount;
-            // dark_background_icons, dark_background_icon, icon_size (IconSpecification)	::	IconSpecification (optional)
-            // flags	::	ItemPrototypeFlags (optional)
-            double fuel_acceleration_multiplier;
-            string fuel_category;
-            double fuel_emissions_multiplier;
-            Color fuel_glow_color;
-            double fuel_top_speed_multiplier;
-            Energy fuel_value;
-            // pictures	::	SpriteVariations (optional)
-            // place_as_tile	::	PlaceAsTile (optional)
-            string place_result;
-            string placed_as_equipment_result;
-            // rocket_launch_product	::	ItemProductPrototype (optional)
-            // rocket_launch_products	::	table (array) of ItemProductPrototype (optional)
-            string subgroup;
-            uint32_t wire_count;
-        };
-    };
-};
+factorio::data::PrototypeBase::PrototypeBase(const FObject &obj)
+{
+    ld(name, obj);
+    ld(type, obj);
+    ld(localised_description, obj);
+    ld(localised_name, obj);
+    ld(order, obj);
+}
 
 static void unhide_recursive_up(nana::treebox::item_proxy node)
 {
@@ -950,6 +1050,7 @@ static void apply_filter(const std::string &filter, nana::treebox::item_proxy no
     }
 }
 
+static nana::group *editor;
 static nana::picture *sprite_preview = nullptr;
 static nana::timer update_filtering;
 static nana::treebox *data_raw_tree = nullptr;
@@ -972,7 +1073,7 @@ static void do_filtering(const std::chrono::steady_clock::time_point &now)
     update_filtering.stop();
 
     auto end = std::chrono::steady_clock::now();
-    fprintf(stderr, "elapsed: %llums\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - now));
+    fprintf(stderr, "elapsed: %lldms\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count());
 }
 
 static void trigger_do_filtering()
@@ -981,6 +1082,95 @@ static void trigger_do_filtering()
     auto now = std::chrono::steady_clock::now();
     do_filtering(now);
 }
+
+
+    struct editor_layout
+    {
+        std::vector<std::string> heights;
+        std::string default_height = "30";
+        std::string icon_height = "200";
+
+        void render_column(std::string &out, const std::string &name)
+        {
+            out += "<vert arrange=[" + heights.front();
+            for (auto it = heights.begin() + 1; it != heights.end(); it++)
+            {
+                out += "," + *it;
+            }
+            out += "] ";
+            out += name;
+            out += ">";
+        }
+
+        std::string render()
+        {
+            std::string out;
+            render_column(out, "key_");
+            render_column(out, "value_");
+            return out;
+        }
+
+        nana::group *group;
+
+        editor_layout(nana::group *parent)
+        {
+            group = new nana::group(static_cast<nana::window>(*parent));
+            (*parent)["sections"] << *group;
+        }
+
+        void row(const std::string &key, const std::string &height)
+        {
+            heights.emplace_back(default_height);
+            group->create_child<nana::label>("key_")->caption(key);
+        }
+
+        template<typename T>
+        void data(const T &value)
+        {
+            group->create_child<nana::label>("value_")->caption(std::to_string(value));
+        }
+        template<>
+        void data(const factorio::data::string &value)
+        {
+            group->create_child<nana::label>("value_")->caption(value);
+        }
+        template <>
+        void data(const factorio::data::Color &value)
+        {
+            group->create_child<nana::label>("value_")->caption("rgba");
+        }
+        
+
+        template<typename T>
+        void normal(const std::string &key, const T &value)
+        {
+            row(key, default_height);
+            data(value);
+        }
+        
+
+        // void normal(const std::string &key, double value)
+        // {
+        //     heights.emplace_back(default_height);
+
+        //     group->create_child<nana::label>("key_")->caption(key);
+        //     group->create_child<nana::label>("value_")->caption(std::to_string(value));
+        // }
+
+        void icon(const std::string &key, nana::paint::image &image)
+        {
+            row(key, icon_height);
+            group->create_child<nana::picture>("value_")->load(image);
+        }
+
+        void collocate()
+        {
+            group->div(render().c_str());
+            group->collocate();
+        }
+
+
+    };
 
 int main()
 {
@@ -1001,9 +1191,12 @@ int main()
     search->multi_lines(false);
     layout["search"] << *search;
 
-    sprite_preview = new nana::picture(*win);
-    sprite_preview->caption("hello");
-    layout["rightno"] << *sprite_preview;
+    editor = new nana::group(*win);
+    // editor->append_header("name");
+    // editor->append_header("value");
+    // sprite_preview = new nana::picture(*win);
+    // sprite_preview->caption("hello");
+    layout["rightno"] << *editor;
 
     layout.collocate();
 
@@ -1059,6 +1252,7 @@ int main()
 
     nana::paint::image preview_image;
 
+
     ska::bytell_hash_map<std::string, std::function<void(const std::vector<std::string> &path)>> prototype_factories;
     prototype_factories["data/raw/item"] = [&](const std::vector<std::string> &path) {
         if (path.size() < 4)
@@ -1075,11 +1269,47 @@ int main()
 
         factorio::data::ItemPrototype proto(item);
 
-        preview_image.close();
-        if (preview_image.open(proto.icon.file_path))
+        if (editor)
         {
-            sprite_preview->load(preview_image);
+            editor->close();
+            delete editor;
         }
+
+        editor = new nana::group(*win);
+        editor->div("<vert margin=10 sections>");
+
+        layout["rightno"] << *editor;
+
+        // layout["rightno"].
+
+        editor_layout base(editor);
+        base.group->caption("PrototypeBase");
+
+        base.normal("name", proto.name);
+        base.normal("type", proto.type);
+        base.normal("localised_description", proto.localised_description);
+        base.normal("localised_name", proto.localised_name);
+        base.normal("order", proto.order);
+        base.collocate();
+
+        editor_layout item_group(editor);
+        item_group.group->caption("ItemPrototype");
+
+        preview_image.close();
+        preview_image.open(proto.icon.file_path);
+        item_group.icon("icon", preview_image);
+
+        item_group.normal("fuel_acceleration_multiplier", proto.fuel_acceleration_multiplier);
+        item_group.normal("fuel_category", proto.fuel_category);
+        item_group.normal("fuel_emissions_multiplier", proto.fuel_emissions_multiplier);
+        item_group.normal("fuel_glow_color", proto.fuel_glow_color);
+        item_group.normal("fuel_top_speed_multiplier", proto.fuel_top_speed_multiplier);
+        item_group.normal("fuel_value", proto.fuel_value);
+
+        item_group.collocate();
+
+        editor->collocate();
+        layout.collocate();
     };
 
 
@@ -1128,6 +1358,8 @@ int main()
     data_raw_tree->auto_draw(false);
     raw.table().visit([&](int dir, FKeyValue entry)
     {
+        FObject::visit_result mode = FObject::visit_result::DESCEND;
+
         nana::treebox::item_proxy node;
         std::string local_path = path + "/" + entry.key;
         if (dir >= 0)
@@ -1138,8 +1370,15 @@ int main()
         }
         if (dir > 0)
         {
-            path = local_path;
-            visual_stack.push_front(node);
+            if (visual_stack.size() > 1)
+            {
+                mode = FObject::visit_result::CONTINUE;
+            }
+            else
+            {
+                path = local_path;
+                visual_stack.push_front(node);
+            }
         }
         else if (dir < 0)
         {
@@ -1147,11 +1386,18 @@ int main()
             visual_stack.pop_front();
         }
 
+        return mode;
     });
     data_raw_tree->auto_draw(true);
 
     win->show();
     nana::exec();
+
+    update_filtering.reset();
+    delete editor;
+    delete search;
+    delete data_raw_tree;
+    delete win;
     // lua_getglobal(L, "data");
     // std::cout << lua_tostring(L, -1);
 
