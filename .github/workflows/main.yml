@@ -44,7 +44,8 @@ jobs:
         env:
           CXX: ${{ matrix.config.cxx }}
           CC: ${{ matrix.config.cc }}
-        uses: rainlabs-eu/ghaction-cmake-quality@v1
+        run: |
+          cmake --version
 
       # - name: Configure and Build
       #   uses: lukka/run-cmake@v2.5
