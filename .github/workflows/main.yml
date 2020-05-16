@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Setup vcvars
-        if: ${{ matrix.config.environment_script != "" }}
+        if: ${{ matrix.config.environment_script != '' }}
         run: ${{ matrix.config_environment_script }}
 
       - uses: actions/checkout@v1
