@@ -37,6 +37,7 @@ jobs:
 
       - name: Setup vcvars
         if: ${{ matrix.config.environment_script != '' }}
+        shell: cmd
         run: |
           dir "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/"
           & "${{ matrix.config.environment_script }}"

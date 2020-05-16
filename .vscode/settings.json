@@ -78,6 +78,7 @@
         "set": "cpp",
         "stack": "cpp",
         "thread": "cpp",
-        "cstdarg": "cpp"
+        "cstdarg": "cpp",
+        "push_ignore_diagnostic": "cpp"
     }
 }
