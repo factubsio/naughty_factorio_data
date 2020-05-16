@@ -29,7 +29,7 @@ jobs:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
         
-    - name: run-cmake
+    - name: compile-with-clang
       uses: lukka/run-cmake@v2.5
       env:
         CXX: clang++-9
@@ -37,7 +37,7 @@ jobs:
       with:
         buildDirectory: "build" # optional, default is ${{ github.workspace }}/../../_temp
         
-    - name: run-cmake
+    - name: compile-with-gcc
       uses: lukka/run-cmake@v2.5
       env:
         CXX: g++-8
