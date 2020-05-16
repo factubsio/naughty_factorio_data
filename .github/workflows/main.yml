@@ -20,7 +20,12 @@ jobs:
         - {
             name: "Ubuntu Latest GCC", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
-            cc: "gcc", cxx: "g++"
+            cc: "gcc-8", cxx: "g++-8"
+          }
+        - {
+            name: "Ubuntu Clang", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            cc: "clang-9", cxx: "clang++-9"
           }
         - {
             name: "macOS Latest Clang", artifact: "macOS.tar.xz",
