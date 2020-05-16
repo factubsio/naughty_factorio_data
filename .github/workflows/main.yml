@@ -1,64 +1,43 @@
-# This is a basic workflow to help you get started with Actions
+name: CMake Build Matrix
 
+on: [push, pull_request]
 
+env:
+  CMAKE_VERSION: 3.16.2
+  NINJA_VERSION: 1.9.0
+  BUILD_TYPE: Release
+  CCACHE_VERSION: 3.7.7
 
-name: CI
-
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    if: github
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {
+            name: "Windows Latest MSVC", artifact: "Windows-MSVC.tar.xz",
+            os: windows-latest,
+            cc: "cl", cxx: "cl",
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+          }
+        - {
+            name: "Windows Latest MinGW", artifact: "Windows-MinGW.tar.xz",
+            os: windows-latest,
+            cc: "gcc", cxx: "g++"
+          }
+        - {
+            name: "Ubuntu Latest GCC", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            cc: "gcc", cxx: "g++"
+          }
+        - {
+            name: "macOS Latest Clang", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            cc: "clang", cxx: "clang++"
+          }
     steps:
-    - name: apt helper action
-      run: sudo apt-get install -y xorg-dev
-    
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
-        
-    - name: compile-with-clang
-      uses: lukka/run-cmake@v2.5
-      env:
-        CXX: clang++-9
-        CC: clang-9
-      with:
-        buildDirectory: "build" # optional, default is ${{ github.workspace }}/../../_temp
-        
-    - name: compile-with-gcc
-      uses: lukka/run-cmake@v2.5
-      env:
-        CXX: g++-8
-        CC: gcc-8
-      with:
-        buildDirectory: "build_gcc" # optional, default is ${{ github.workspace }}/../../_temp
-  
-  build-windows:
-    if: github
-    # The type of runner that the job will run on
-    runs-on: windows-latest
-    
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:   
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
-        
-    - name: compile-with-msvc
-      uses: lukka/run-cmake@v2.5
-      with:
-        buildDirectory: "build" # optional, default is ${{ github.workspace }}/../../_temp        
-    
-
-    
+      - name: Print environment
+        run: echo "${{ matrix.config.name }}"
+      
