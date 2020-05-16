@@ -29,13 +29,21 @@ jobs:
           }
 
     steps:
+      env:
+        CXX: ${{ matrix.config.cxx }}
+        CC: ${{ matrix.config.cc }}
+
       - name: Setup vcvars
         if: ${{ matrix.config.environment_script != '' }}
         run: ${{ matrix.config.environment_script }}
 
       - uses: actions/checkout@v1
+
       - name: Print environment
-        run: echo "${{ matrix.config.name }} ${{ matrix.build_type }}"
+        run: |
+         echo "${{ matrix.config.name }} ${{ matrix.build_type }}"
+         echo "CXX: $CXX"
+         echo "CC: $CC"
 
       - name: Configure and Build
         uses: lukka/run-cmake@v2.5
