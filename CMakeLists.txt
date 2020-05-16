@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
 project(factorio-data-browser CXX C)
 
 add_library(options INTERFACE)
@@ -10,15 +10,7 @@ target_compile_features(options INTERFACE cxx_std_17)
 add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0 _NO_DEBUG_HEAP=1)
 
 
-foreach(flag
-        CMAKE_C_FLAGS              CMAKE_C_FLAGS_DEBUG             CMAKE_C_FLAGS_RELEASE
-        CMAKE_C_FLAGS_MINSIZEREL   CMAKE_C_FLAGS_RELWITHDEBINFO
-        CMAKE_CXX_FLAGS            CMAKE_CXX_FLAGS_DEBUG           CMAKE_CXX_FLAGS_RELEASE
-        CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-    if(${flag} MATCHES "/MD")
-        string(REGEX REPLACE "/MD" "/MT" ${flag} "${${flag}}")
-    endif()
-endforeach()
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 # Tell png that we are building zlib alongside the project
 SET(PNG_BUILD_ZLIB ${CMAKE_SOURCE_DIR}/vendor/zlib CACHE STRING "Build libfoo shared library" FORCE)
