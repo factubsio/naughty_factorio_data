@@ -50,6 +50,8 @@ jobs:
 
       - name: Restore artifacts, or run vcpkg, build and cache artifacts
         uses: lukka/run-vcpkg@v2
+        with:
+          vcpkgGitCommitId: "0591528cbfde14ccfd3900c3fb19aba382c05349"
 
       - name: Configure and Build
         uses: lukka/run-cmake@v2.5
