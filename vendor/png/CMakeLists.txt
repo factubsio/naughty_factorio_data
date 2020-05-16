@@ -270,7 +270,7 @@ endif()
 
 if (NOT WIN32)
   find_program(AWK NAMES gawk awk)
-end()
+endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
