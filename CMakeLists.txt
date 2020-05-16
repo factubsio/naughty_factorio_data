@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(factorio-data-browser CXX C)
 
 set(FACTORIOPATH "C:/Users/micha/factorios/bob_angel - Copy/Factorio_0.18.19")
-if(unix)
+if(UNIX)
     set(FACTORIOPATH "/home/nexela/factorio")
 endif()
 
@@ -51,7 +51,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/lua)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/nana)
 
 # FIX silly vendor supplied cmake issues!
-if(unix)
+if(UNIX)
     target_compile_options(nana PRIVATE -Wno-reorder -Wno-pessimizing-move)
 endif()
 
