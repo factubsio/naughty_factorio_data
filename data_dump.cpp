@@ -24,6 +24,7 @@
 #include <variant>
 #include <chrono>
 #include "nana/gui.hpp"
+#include "nana/gui/widgets/button.hpp"
 #include "nana/gui/widgets/label.hpp"
 #include "nana/gui/widgets/group.hpp"
 #include "nana/gui/widgets/listbox.hpp"
@@ -33,6 +34,14 @@
 #include "bytell_hash_map.hpp"
 
 namespace fs = std::filesystem;
+
+template<typename T>
+struct identity { 
+    const T &ref;
+    operator const T() const { return ref; }
+    const T *operator->() const { return &ref; }
+    identity(const T&ref) : ref(ref) {}
+};
 
 struct FObject;
 using FValue = std::variant<std::monostate, FObject *, std::string, uint64_t, double, bool>;
@@ -928,15 +937,15 @@ factorio::data::array_opt<double, min, max> parse_fval(factorio::data::array_opt
         {
             parse_fval(out.arr[out.count], kv.value);
             out.count++;
-            if (out.count == max)
-                abort();
+            if (out.count > max)
+                abort(); //THROW AN ERROR YOU NINNY
         }
         if (out.count < min)
-            abort();
+            abort(); //THROW AN ERROR YOU NINNY
     }
     else
     {
-        // out = {-1, -1, -1, -1};
+        // could be optional so let upstream handle it
     }
     return out;
 }
@@ -1125,27 +1134,25 @@ static void trigger_do_filtering()
         }
 
         template<typename T>
-        void data(const T &value)
+        void data(const identity<T> &value)
         {
             group->create_child<nana::label>("value_")->caption(std::to_string(value));
         }
-        template<>
-        void data(const factorio::data::string &value)
+        void data(const identity<factorio::data::string> &value)
         {
             group->create_child<nana::label>("value_")->caption(value);
         }
-        template <>
-        void data(const factorio::data::Color &value)
+        void data(const identity<factorio::data::Color> &value)
         {
-            group->create_child<nana::label>("value_")->caption("rgba");
+            nana::color color(value->r, value->g, value->b, value->a);
+            group->create_child<nana::button>("value_")->bgcolor(color);
         }
-        
 
         template<typename T>
         void normal(const std::string &key, const T &value)
         {
             row(key, default_height);
-            data(value);
+            data(identity<T>(value));
         }
         
 
@@ -1252,6 +1259,8 @@ int main()
 
     nana::paint::image preview_image;
 
+ 
+#define editor_row(ed, proto, name) ed.normal(#name, proto. ## name);
 
     ska::bytell_hash_map<std::string, std::function<void(const std::vector<std::string> &path)>> prototype_factories;
     prototype_factories["data/raw/item"] = [&](const std::vector<std::string> &path) {
@@ -1311,8 +1320,57 @@ int main()
         editor->collocate();
         layout.collocate();
     };
+    prototype_factories["data/raw/tile-effect"] = [&](const std::vector<std::string> &path) {
+        if (path.size() < 4)
+        {
+            return;
+        }
+        const std::string &effect_name = path[3];
 
+        fprintf(stderr, "LOADING EFFECT: %s\n", effect_name.c_str());
 
+        auto rawtbl = raw.table();
+        auto effecttbl = rawtbl.table("tile-effect");
+        auto effect = effecttbl.table(effect_name);
+
+        factorio::data::TileEffectPrototype proto(effect);
+
+        if (editor)
+        {
+            editor->close();
+            delete editor;
+        }
+
+        editor = new nana::group(*win);
+        editor->div("<vert margin=10 sections>");
+
+        layout["rightno"] << *editor;
+
+        // layout["rightno"].
+
+        editor_layout base(editor);
+        base.group->caption("TileEffectPrototype");
+
+        // editor_row(base, proto, animation_scale);
+        editor_row(base, proto, animation_speed);
+        // editor_row(base, proto, dark_threshold);
+        editor_row(base, proto, foam_color);
+        editor_row(base, proto, foam_color_multiplier);
+        editor_row(base, proto, name);
+        // editor_row(base, proto, reflection_threshold);
+        editor_row(base, proto, specular_lightness);
+        // editor_row(base, proto, specular_threshold);
+        // editor_row(base, proto, texture);
+        editor_row(base, proto, tick_scale);
+        editor_row(base, proto, type);
+        editor_row(base, proto, far_zoom);
+        editor_row(base, proto, near_zoom);
+  
+        base.collocate();
+
+        editor->collocate();
+        layout.collocate();
+    };
 
     data_raw_tree->events().selected([&](const nana::arg_treebox& arg) {
         // ignore de-selection (could do some cache freeing)
