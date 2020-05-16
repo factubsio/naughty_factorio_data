@@ -618,6 +618,8 @@ struct VM
 
                 FObject *obj = new FObject();
                 int i = 0;
+
+                // Currently only 5-10% faster, will do more.
 #define USE_FOREACH 0
 #if USE_FOREACH
                 lua_foreach(L, -1, obj, cb);
