@@ -1260,8 +1260,6 @@ int main()
     nana::paint::image preview_image;
 
  
-#define editor_row(ed, proto, name) ed.normal(#name, proto. ## name);
-
     ska::bytell_hash_map<std::string, std::function<void(const std::vector<std::string> &path)>> prototype_factories;
     prototype_factories["data/raw/item"] = [&](const std::vector<std::string> &path) {
         if (path.size() < 4)
@@ -1352,19 +1350,19 @@ int main()
         base.group->caption("TileEffectPrototype");
 
         // editor_row(base, proto, animation_scale);
-        editor_row(base, proto, animation_speed);
+        base.normal("animation_speed", proto.animation_speed);
         // editor_row(base, proto, dark_threshold);
-        editor_row(base, proto, foam_color);
-        editor_row(base, proto, foam_color_multiplier);
-        editor_row(base, proto, name);
+        base.normal("foam_color", proto.foam_color);
+        base.normal("foam_color_multiplier", proto.foam_color_multiplier);
+        base.normal("name", proto.name);
         // editor_row(base, proto, reflection_threshold);
-        editor_row(base, proto, specular_lightness);
+        base.normal("specular_lightness", proto.specular_lightness);
         // editor_row(base, proto, specular_threshold);
         // editor_row(base, proto, texture);
-        editor_row(base, proto, tick_scale);
-        editor_row(base, proto, type);
-        editor_row(base, proto, far_zoom);
-        editor_row(base, proto, near_zoom);
+        base.normal("tick_scale", proto.tick_scale);
+        base.normal("type", proto.type);
+        base.normal("far_zoom", proto.far_zoom);
+        base.normal("near_zoom", proto.near_zoom);
   
         base.collocate();
 
