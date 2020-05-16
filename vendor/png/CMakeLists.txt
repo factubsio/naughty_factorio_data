@@ -268,13 +268,11 @@ if(UNIX)
   symbol_prefix()
 endif()
 
-find_program(AWK NAMES gawk awk)
+if (NOT WIN32)
+  find_program(AWK NAMES gawk awk)
+end()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-if(WIN32)
-  MESSAGE("Force use of pregenerated conf files on windows")
-  UNSET(AWK)
-endif(WIN32)
 
 if(NOT AWK OR ANDROID)
   message("NO AWK - NO GENERATING")
