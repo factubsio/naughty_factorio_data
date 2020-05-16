@@ -268,16 +268,20 @@ if(UNIX)
   symbol_prefix()
 endif()
 
-find_program(AWK NAMES gawk awk)
+if (NOT WIN32)
+  find_program(AWK NAMES gawk awk)
+endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 if(NOT AWK OR ANDROID)
+  message("NO AWK - NO GENERATING")
   # No awk available to generate sources; use pre-built pnglibconf.h
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/pnglibconf.h.prebuilt
                  ${CMAKE_CURRENT_BINARY_DIR}/pnglibconf.h)
   add_custom_target(genfiles) # Dummy
 else()
+  message("AWK - GENERATING")
   include(CMakeParseArguments)
   # Generate .chk from .out with awk
   # generate_chk(INPUT inputfile OUTPUT outputfile [DEPENDS dep1 [dep2...]])
