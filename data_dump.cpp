@@ -311,11 +311,14 @@ std::string weakly_normalize(const fs::path &path)
 }
 
 
+#define STR_(x) #x
+#define STR(x) STR_(x)
+
 struct VM
 {
     lua_State *L = nullptr;
 
-    const fs::path game_dir = "FACTORIOPATH";
+    const fs::path game_dir = STR(FACTORIOPATH);
     const fs::path corelib = game_dir / "data" / "core";
     const fs::path baselib = game_dir / "data" / "base";
     const fs::path mod_dir = game_dir / "mods";
