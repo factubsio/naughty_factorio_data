@@ -83,8 +83,6 @@ foreach(subdir ${NANA_SOURCE_SUBDIRS})
 endforeach()
 
 
-message(info ${SOURCES})
-
 target_sources(nana PRIVATE ${SOURCES})
 
 ###    collect all headers sub-directories in a list to avoid duplication   ###
