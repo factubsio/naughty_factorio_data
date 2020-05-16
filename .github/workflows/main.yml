@@ -2,12 +2,6 @@ name: CMake Build Matrix
 
 on: [pull_request]
 
-env:
-  CMAKE_VERSION: 3.16.2
-  NINJA_VERSION: 1.9.0
-  BUILD_TYPE: Release
-  CCACHE_VERSION: 3.7.7
-
 jobs:
   build:
     name: ${{ matrix.config.name }}-${{ matrix.build_type }}
@@ -23,15 +17,18 @@ jobs:
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
-        - {
-            name: "Windows Latest MinGW", artifact: "Windows-MinGW.tar.xz",
-            os: windows-latest,
-            cc: "gcc", cxx: "g++"
-          }
+        # - {
+        #     name: "Windows Latest MinGW", artifact: "Windows-MinGW.tar.xz",
+        #     os: windows-latest,
+        #     cc: "gcc", cxx: "g++"
+        #     environment_script: "echo "
+        #   }
         - {
             name: "Ubuntu Latest GCC", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             cc: "gcc", cxx: "g++"
+            environment_script: "echo skipping "
+          }
           }
         - {
             name: "macOS Latest Clang", artifact: "macOS.tar.xz",
@@ -39,6 +36,18 @@ jobs:
             cc: "clang", cxx: "clang++"
           }
     steps:
+
+      - name: Setup vcvars
+        if: ${{ matrix.config.environment_script != "" }}
+        run: ${{ matrix.config_environment_script }}
+
+      - uses: actions/checkout@v1
       - name: Print environment
         run: echo "${{ matrix.config.name }} ${{ matrix.build_type }}"
+
+      - name: Configure and Build
+        uses: lukka/run-cmake@v2.5
+        env:
+          CXX: ${{ matrix.config.cxx }}
+          CC: ${{ matrix.config.cc }}
       
