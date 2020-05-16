@@ -1,42 +1,43 @@
-#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING 1
-#include "lua.h"
-#include "lauxlib.h"
-#include <iostream>
-#include <string>
-#include <filesystem>
-#include <cstdio>
+#include <JSON.h>
+#include <bytell_hash_map.hpp>
+#include <chrono>
 #include <codecvt>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <lauxlib.h>
 #include <locale>
+#include <lua.h>
+#include <lualib.h>
+#include <nana/gui.hpp>
+#include <nana/gui/widgets/group.hpp>
+#include <nana/gui/widgets/button.hpp>
+#include <nana/gui/widgets/label.hpp>
+#include <nana/gui/widgets/listbox.hpp>
+#include <nana/gui/widgets/picture.hpp>
+#include <nana/gui/widgets/textbox.hpp>
+#include <nana/gui/widgets/treebox.hpp>
+#include <regex>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <variant>
+#include <vector>
+#include <zip.h>
+
 #ifdef __linux__
 #include <unistd.h>
 #define _getcwd getcwd
 #else
 #include <direct.h>
 #endif
-#include "lualib.h"
-#include "zip.h"
-#include "JSON.h"
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-#include <fstream>
-#include <regex>
-#include <variant>
-#include <chrono>
-#include "nana/gui.hpp"
-#include "nana/gui/widgets/button.hpp"
-#include "nana/gui/widgets/label.hpp"
-#include "nana/gui/widgets/group.hpp"
-#include "nana/gui/widgets/listbox.hpp"
-#include "nana/gui/widgets/picture.hpp"
-#include "nana/gui/widgets/treebox.hpp"
-#include "nana/gui/widgets/textbox.hpp"
-#include "bytell_hash_map.hpp"
+
 
 namespace fs = std::filesystem;
 
 template<typename T>
-struct identity { 
+struct identity {
     const T &ref;
     operator const T() const { return ref; }
     const T *operator->() const { return &ref; }
@@ -304,8 +305,7 @@ struct VM
 {
     lua_State *L = nullptr;
 
-    const fs::path game_dir = "C:/Users/micha/factorios/bob_angel - Copy/Factorio_0.18.19";
-    // const fs::path game_dir = "/home/nexela/factorio";
+    const fs::path game_dir = "FACTORIOPATH";
     const fs::path corelib = game_dir / "data" / "core";
     const fs::path baselib = game_dir / "data" / "base";
     const fs::path mod_dir = game_dir / "mods";
@@ -483,7 +483,7 @@ struct VM
         lua_settop(L, 0);
     }
 
-    
+
     std::string lua_key(int index)
     {
         int type = lua_type(L, index);
@@ -759,7 +759,7 @@ struct VM
         {
             actual_base /= *it;
         }
-        
+
         return actual_base;
     }
 };
@@ -959,7 +959,7 @@ T parse_fval(const FValue &value)
 
 std::string to_string(const FValue &value)
 {
-    
+
     if (auto str = std::get_if<std::string>(&value); str)
     {
         return *str;
@@ -1082,7 +1082,7 @@ static void do_filtering(const std::chrono::steady_clock::time_point &now)
     update_filtering.stop();
 
     auto end = std::chrono::steady_clock::now();
-    fprintf(stderr, "elapsed: %lldms\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count());
+    fprintf(stderr, "elapsed: %ldms\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - now).count());
 }
 
 static void trigger_do_filtering()
@@ -1154,7 +1154,7 @@ static void trigger_do_filtering()
             row(key, default_height);
             data(identity<T>(value));
         }
-        
+
 
         // void normal(const std::string &key, double value)
         // {
@@ -1259,7 +1259,7 @@ int main()
 
     nana::paint::image preview_image;
 
- 
+
     ska::bytell_hash_map<std::string, std::function<void(const std::vector<std::string> &path)>> prototype_factories;
     prototype_factories["data/raw/item"] = [&](const std::vector<std::string> &path) {
         if (path.size() < 4)
@@ -1363,7 +1363,7 @@ int main()
         base.normal("type", proto.type);
         base.normal("far_zoom", proto.far_zoom);
         base.normal("near_zoom", proto.near_zoom);
-  
+
         base.collocate();
 
         editor->collocate();
