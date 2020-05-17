@@ -15,6 +15,12 @@ target_compile_definitions(options INTERFACE _SILENCE_CXX17_CODECVT_HEADER_DEPRE
 # Possible to add this to the options target_compile_definitions only?
 add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0 _NO_DEBUG_HEAP=1)
 
+
+#don't use spdlog's bundled fmt
+set(SPDLOG_FMT_EXTERNAL
+    ON
+    CACHE BOOL "blah" FORCE)
+
 # Tell png that we are building zlib alongside the project
 set(PNG_BUILD_ZLIB
     ${CMAKE_SOURCE_DIR}/vendor/zlib
@@ -46,6 +52,8 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/headers)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/SimpleJson)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/zip)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/zlib)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/fmt)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/spdlog)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/png)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/lua)
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/nana)
@@ -55,6 +63,13 @@ if(UNIX)
     target_compile_options(nana PRIVATE -Wno-reorder -Wno-pessimizing-move)
 endif()
 
-add_executable(factorio_data_browser data_dump.cpp)
-target_link_libraries(factorio_data_browser PUBLIC options Lua nana headers
-                                                   SimpleJson zip)
+
+set(fdb_headers util.hpp vm.hpp fobject.hpp factorio_data.hpp)
+set(fdb_sources data_browser.cpp vm.cpp factorio_data.cpp fobject.cpp)
+add_executable(factorio_data_browser ${fdb_headers} ${fdb_sources})
+target_link_libraries(factorio_data_browser PUBLIC options Lua nana headers SimpleJson zip fmt spdlog)
+
+
+add_custom_command(TARGET factorio_data_browser PRE_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                       ${CMAKE_SOURCE_DIR}/bootstrap.lua ${CMAKE_SOURCE_DIR}/serpent.lua ${CMAKE_BINARY_DIR})
