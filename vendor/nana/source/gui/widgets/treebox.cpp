@@ -1217,9 +1217,10 @@ namespace nana
 
 				item_proxy& item_proxy::hide(bool h)
 				{
+					
 					auto* impl = trigger_->impl();
-					if (impl->set_hidden(node_, h))
-						impl->draw(true);
+					if (impl->set_hidden(node_, h)) {}
+						//impl->draw(true);
 
 					return *this;
 				}
