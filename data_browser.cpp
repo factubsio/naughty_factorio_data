@@ -159,14 +159,17 @@ template<typename Binder, typename Binding>
 struct value_editor_bound<double, Binder, Binding> : value_editor
 {
     Binding binding;
-    value_editor_bound(Binding binding, nana::widget* label, nana::widget* editor) : value_editor(label, editor), binding(binding)
+    value_editor_bound(nana::window parent, Binding binding) : value_editor(), binding(binding)
     {
+        nana::textbox* box = new nana::textbox(parent);
+        box->multi_lines(false);
+        editor = std::unique_ptr<nana::widget>(box);
     }
 
     void bind(void *obj) override {
         nana::textbox* double_editor = static_cast<nana::textbox*>(editor.get());
         Binder* b = static_cast<Binder*>(obj);
-        double_editor->caption(std::to_string(b->*binding));
+        double_editor->from(b->*binding);
     }
 };
 
@@ -175,14 +178,17 @@ template<typename Binder, typename Binding>
 struct value_editor_bound<factorio::data::string, Binder, Binding> : value_editor
 {
     Binding binding;
-    value_editor_bound(Binding binding, nana::widget* label, nana::widget* editor) : value_editor(label, editor), binding(binding)
+    value_editor_bound(nana::window parent, Binding binding) : value_editor(), binding(binding)
     {
+        nana::textbox* box = new nana::textbox(parent);
+        box->multi_lines(false);
+        editor = std::unique_ptr<nana::widget>(box);
     }
 
     void bind(void *obj) override {
-        nana::textbox* double_editor = static_cast<nana::textbox*>(editor.get());
+        nana::textbox* str_editor = static_cast<nana::textbox*>(editor.get());
         Binder* b = static_cast<Binder*>(obj);
-        double_editor->caption(b->*binding);
+        str_editor->caption(b->*binding);
     }
 };
 
@@ -202,9 +208,14 @@ struct block_editor
     }
 
     template<typename T, typename Binder, typename Binding>
-    void register_value_editor(const std::string& key, Binding binding, nana::widget* label_widget, nana::widget* editor_widget)
+    void register_value_editor(const std::string& key, Binding binding, nana::group &group)
     {
-        value_editor *editor = new value_editor_bound<T, Binder, Binding>(binding, label_widget, editor_widget); 
+        nana::label* label = new nana::label(group.handle());
+        label->caption(key);
+        value_editor* editor = new value_editor_bound<T, Binder, Binding>(group.handle(), binding);
+        group["key_"] << *label;
+        editor->label = std::unique_ptr<nana::widget>(label);
+        group["value_"] << *editor->editor;
         value_editors[key] = std::unique_ptr<value_editor>(editor);
     }
 
@@ -266,39 +277,41 @@ struct section_layout_builder
     }
 
 
-    template<typename T>
-    nana::widget *add_editor(const std::string &where, const identity<T> t)
+private:
+  /*  template<typename T>
+    nana::widget *add_editor(const std::string &where, identity<T> t)
     {
         return group->create_child<nana::textbox>(where.c_str());
     }
 
     template<>
-    nana::widget *add_editor(const std::string &where, const identity<std::monostate> t)
+    nana::widget *add_editor(const std::string &where, identity<std::monostate> t)
     {
         return group->create_child<nana::label>(where.c_str());
     }
 
     template<>
-    nana::widget *add_editor(const std::string &where, const identity<factorio::data::Color> t)
+    nana::widget *add_editor(const std::string &where, identity<factorio::data::Color> t)
     {
         return group->create_child<nana::button>(where.c_str());
-    }
+    }*/
 
+public:
     template<typename T, typename Binder, typename Binding>
     void add_row(Binding binding, const std::string& label)
     {
         //Allocate space in the layout
         heights.emplace_back(default_height);
 
-        //Create the label
-        nana::widget* label_widget = add_editor("key_", identity<std::monostate>{});
-        label_widget->caption(label);
+        ////Create the label
+        //nana::widget* label_widget = add_editor<std::monostate>("key_", identity<std::monostate>());
+        //label_widget->caption(label);
 
-        //Create the editor
-        nana::widget *editor_widget = add_editor("value_", identity<T>{});
+        ////Create the editor
+        //nana::widget *editor_widget = add_editor("value_", identity<T>());
 
         //Register the editor with the block
-        block.register_value_editor<T, Binder, Binding>(label, binding, label_widget, editor_widget);
+        block.register_value_editor<T, Binder, Binding>(label, binding, *group);
     }
 
     void collocate()

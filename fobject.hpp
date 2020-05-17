@@ -17,7 +17,11 @@ struct FValue
     data_type data;
 
     FValue() : data() {}
-    FValue(const data_type& data) : data(data) {}
+    FValue(const std::string& data) : data(data) {}
+    FValue(const uint64_t data) : data(data) {}
+    FValue(const double data) : data(data) {}
+    FValue(const bool data) : data(data) {}
+    FValue(FObject *data) : data(data) {}
 
 
     template<typename T>

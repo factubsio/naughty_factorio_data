@@ -37,7 +37,7 @@ struct prof
 //Tag type so we can specialise member functions
 template<typename T>
 struct identity {
-    using type = T;
+    typedef T type;
 };
 
 #if defined(WIN32)

@@ -268,7 +268,7 @@ if(UNIX)
   symbol_prefix()
 endif()
 
-if (NOT WIN32)
+if (FALSE)
   find_program(AWK NAMES gawk awk)
 endif()
 
