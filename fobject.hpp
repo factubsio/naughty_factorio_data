@@ -14,7 +14,11 @@ struct FValue
 {
     using data_type = std::variant<std::monostate, FObject*, std::string, uint64_t, double, bool>;
 
+
+    //If we make this private now then one day we can do fun things like make FValue wrap a native lua object (or PropertyTree)
+private:
     data_type data;
+public:
 
     FValue() : data() {}
     FValue(const std::string& data) : data(data) {}
