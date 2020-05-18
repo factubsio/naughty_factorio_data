@@ -6,6 +6,9 @@
 #include <iostream>
 #include <locale>
 #include <nana/gui.hpp>
+
+//Should these be in a header that we include? :shrug:
+#include <nana/gui/widgets/checkbox.hpp>
 #include <nana/gui/widgets/group.hpp>
 #include <nana/gui/widgets/button.hpp>
 #include <nana/gui/widgets/label.hpp>
@@ -13,6 +16,8 @@
 #include <nana/gui/widgets/picture.hpp>
 #include <nana/gui/widgets/textbox.hpp>
 #include <nana/gui/widgets/treebox.hpp>
+#include <nana/gui/widgets/spinbox.hpp>
+
 #include <regex>
 #include <string>
 #include <unordered_map>
@@ -142,55 +147,159 @@ static const std::chrono::milliseconds filter_throttle_interval_ms(50);
 //We also call bind() on this when a new prototype is selected
 struct value_editor
 {
+    static const std::string height() { return "30"; }
+
     std::unique_ptr<nana::widget> label;
     std::unique_ptr<nana::widget> editor;
 
     value_editor() = default;
     value_editor(nana::widget* label, nana::widget *editor) : label(label), editor(editor) {}
 
-    virtual void bind(void *obj) = 0;
+    void bind(void* obj) {
+        this->obj = obj;
+        _bind(obj);
+    }
+
+    virtual ~value_editor() = default;
+
+protected:
+    void* obj;
+    virtual void _bind(void *obj) = 0;
+
 };
 
 //There should be no default impl of this, unless we just assume we can call std::to_string on Binder->Binding :thinkingface:
+template<typename T, typename Binder, typename Binding, typename editor_type = void>
+struct value_editor_bound_base : value_editor {
+    using type = T;
+    Binding binding;
+    editor_type *_editor = nullptr;
+
+    type& get() {
+        Binder* b = static_cast<Binder*>(obj);
+        return b->*binding;
+    }
+
+    value_editor_bound_base(Binding binding, nana::window parent = nullptr) : value_editor(), binding(binding) {
+        if constexpr (!std::is_void<editor_type>())
+        {
+            _editor = new editor_type(parent);
+            editor = std::unique_ptr<nana::widget>(_editor);
+        }
+    }
+};
 template<typename T, typename Binder, typename Binding>
-struct value_editor_bound : value_editor { };
+struct value_editor_bound: value_editor_bound_base<T, Binder, Binding> { };
 
 template<typename Binder, typename Binding>
-struct value_editor_bound<double, Binder, Binding> : value_editor
+struct value_editor_bound<double, Binder, Binding> : value_editor_bound_base<double, Binder, Binding, nana::spinbox>
 {
-    Binding binding;
-    value_editor_bound(nana::window parent, Binding binding) : value_editor(), binding(binding)
+    value_editor_bound(nana::window parent, Binding binding) : value_editor_bound_base(binding, parent)
     {
-        nana::textbox* box = new nana::textbox(parent);
-        box->multi_lines(false);
-        editor = std::unique_ptr<nana::widget>(box);
+        _editor->range(-100., 100., 0.1);
+
+        _editor->events().text_changed([this](const nana::arg_spinbox &arg) {
+            get() = arg.widget.to_double();
+        });
+
     }
 
-    void bind(void *obj) override {
-        nana::textbox* double_editor = static_cast<nana::textbox*>(editor.get());
-        Binder* b = static_cast<Binder*>(obj);
-        double_editor->from(b->*binding);
+    void _bind(void *obj) override {
+        _editor->value(fmt::to_string(get()));
+    }
+};
+
+template<typename Binder, typename Binding>
+struct value_editor_bound<factorio::data::Color, Binder, Binding> : value_editor_bound_base<factorio::data::Color, Binder, Binding, nana::button>
+{
+    value_editor_bound(nana::window parent, Binding binding) : value_editor_bound_base(binding, parent)
+    {
+        //_editor->events().clic([this](const nana::arg_spinbox &arg) {
+        //    //get() = arg.widget.to_double();
+        //});
+
+    }
+
+    void _bind(void *obj) override {
+        _editor->bgcolor(nana::colors::blue);
+        //_editor->value(fmt::to_string(get()));
     }
 };
 
 
 template<typename Binder, typename Binding>
-struct value_editor_bound<factorio::data::string, Binder, Binding> : value_editor
+struct value_editor_bound<factorio::data::string, Binder, Binding> : value_editor_bound_base<factorio::data::string, Binder, Binding, nana::textbox>
 {
     Binding binding;
-    value_editor_bound(nana::window parent, Binding binding) : value_editor(), binding(binding)
+    value_editor_bound(nana::window parent, Binding binding) : value_editor_bound_base(binding, parent)
     {
-        nana::textbox* box = new nana::textbox(parent);
-        box->multi_lines(false);
-        editor = std::unique_ptr<nana::widget>(box);
+        _editor->multi_lines(false);
     }
 
-    void bind(void *obj) override {
-        nana::textbox* str_editor = static_cast<nana::textbox*>(editor.get());
-        Binder* b = static_cast<Binder*>(obj);
-        str_editor->caption(b->*binding);
+    void _bind(void *obj) override {
+        _editor->caption(get());
     }
 };
+
+
+template<typename Binder, typename Binding>
+struct value_editor_bound<factorio::data::array_opt<double, 1, 2>, Binder, Binding> : value_editor_bound_base<factorio::data::array_opt<double, 1, 2>, Binder, Binding>
+{
+    static const std::string height() { return "60"; }
+
+    std::unique_ptr<nana::textbox> value1;
+    std::unique_ptr<nana::textbox> value2;
+    std::unique_ptr<nana::checkbox> value2_enabled;
+
+    value_editor_bound(nana::window parent, Binding binding) : value_editor_bound_base(binding)
+    {
+        nana::group* group = new nana::group(parent);
+        value1 = std::make_unique<nana::textbox>(group->handle());
+        value2 = std::make_unique<nana::textbox>(group->handle());
+        value2_enabled = std::make_unique<nana::checkbox>(group->handle());
+        value2_enabled->caption("use array[2]");
+
+
+        value1->multi_lines(false);
+        value2->multi_lines(false);
+
+        group->div("<value1><value2><value2_enabled>");
+        (*group)["value1"] << *value1;
+        (*group)["value2"] << *value2;
+        (*group)["value2_enabled"] << *value2_enabled;
+
+        group->collocate();
+
+        editor = std::unique_ptr<nana::widget>(group);
+
+        value2_enabled->events().checked([this](const nana::arg_checkbox& arg) {
+            bool has_value2 = arg.widget->checked();
+            value2->enabled(has_value2);
+            get().count = has_value2 ? 2 : 1;
+        });
+        value1->events().text_changed([this](const nana::arg_textbox& arg) {
+            get().arr[0] = value1->to_double();
+        });
+        value2->events().text_changed([this](const nana::arg_textbox& arg) {
+            get().arr[1] = value2->to_double();
+        });
+    }
+
+    void _bind(void *obj) override {
+        type& arr = get();
+        value1->from(arr.arr[0]);
+        bool has_value2 = arr.count == 2;
+        if (has_value2)
+            value2->from(arr.arr[1]);
+        else
+            value2->from(0);
+        value2->enabled(has_value2);
+        value2_enabled->check(has_value2);
+
+        //str_editor->caption();
+    }
+};
+
 
 
 //Pretty much just a list of value_editors
@@ -242,7 +351,6 @@ struct block_editor
 struct section_layout_builder
 {
     std::vector<std::string> heights;
-    std::string default_height = "30";
     std::string icon_height = "200";
     
     nana::group* group;
@@ -276,42 +384,19 @@ struct section_layout_builder
         return out;
     }
 
-
-private:
-  /*  template<typename T>
-    nana::widget *add_editor(const std::string &where, identity<T> t)
-    {
-        return group->create_child<nana::textbox>(where.c_str());
-    }
-
-    template<>
-    nana::widget *add_editor(const std::string &where, identity<std::monostate> t)
-    {
-        return group->create_child<nana::label>(where.c_str());
-    }
-
-    template<>
-    nana::widget *add_editor(const std::string &where, identity<factorio::data::Color> t)
-    {
-        return group->create_child<nana::button>(where.c_str());
-    }*/
-
-public:
-    template<typename T, typename Binder, typename Binding>
+    template<typename Binding>
     void add_row(Binding binding, const std::string& label)
     {
+        typedef typename member_pointer_class<Binding>::type ClassT;
+        typedef typename member_pointer_value<Binding>::type ValueT;
+
+        using editor = value_editor_bound<ValueT, ClassT, Binding>;
+        //Create/register an editor for the given type
+        block.register_value_editor<ValueT, ClassT, Binding>(label, binding, *group);
+
         //Allocate space in the layout
-        heights.emplace_back(default_height);
+        heights.emplace_back(editor::height());
 
-        ////Create the label
-        //nana::widget* label_widget = add_editor<std::monostate>("key_", identity<std::monostate>());
-        //label_widget->caption(label);
-
-        ////Create the editor
-        //nana::widget *editor_widget = add_editor("value_", identity<T>());
-
-        //Register the editor with the block
-        block.register_value_editor<T, Binder, Binding>(label, binding, *group);
     }
 
     void collocate()
@@ -552,6 +637,31 @@ struct UI
     }
 };
 
+struct proto_cache {
+    using make_proto = std::function<void* (FObject & obj)>;
+    std::unordered_map<std::string, void*> entries;
+    std::unordered_map<std::string, make_proto> make;
+
+    template<typename T>
+    T &lookup(FObject &object)
+    {
+        const std::string& type = *object["type"].as<std::string>();
+        const std::string& name = *object["name"].as<std::string>();
+        std::string key = fmt::format("{0}/{1}", type, name);
+        if (auto it = entries.find(key); it != entries.end())
+        {
+            return *static_cast<T*>(it->second);
+        }
+        else
+        {
+            void *proto = make[type](object);
+            entries[key] = proto;
+            return *static_cast<T*>(proto);
+        }
+
+    }
+};
+
 
 int main()
 {
@@ -569,6 +679,8 @@ int main()
     FObject& obj = data_raw.obj();
 
     UI ui(data_raw.obj());
+
+    proto_cache proto_cache;
 
     //prototype_factories["data/raw/item"] = [&](const std::vector<std::string> &path) {
     //    if (path.size() < 4)
@@ -627,7 +739,7 @@ int main()
     ui.register_editor("data/raw/item", [](editor_builder& builder) {
         using base = factorio::data::PrototypeBase;
         builder.section("PrototypeBase", [](section_layout_builder& section) {
-            section.add_row<factorio::data::string, base>(&base::name, "name");
+            section.add_row(&base::name, "name");
         });
     }, [](block_editor& ui, FObject& table) {
     });
@@ -635,15 +747,25 @@ int main()
     ui.register_editor("data/raw/accumulator", [](editor_builder& builder) {
         using base = factorio::data::PrototypeBase;
         builder.section("PrototypeBase", [](section_layout_builder& section) {
-            section.add_row<factorio::data::string, base>(&base::name, "name");
+            section.add_row(&base::name, "name");
         });
     }, [](block_editor& ui, FObject& table) {
     });
 
         //base.group->caption("TileEffectPrototype");
 
-        //// editor_row(base, proto, animation_scale);
-        //base.normal("animation_speed", proto.animation_speed);
+    //Register an editor for a specific prototype
+    //first callback is to build the ui on init (or lazily)
+    //second callback is when a prototype is selected, so we update the editor to reflect the data in that prototype
+    proto_cache.make["tile-effect"] = [](FObject& object) {
+        return new factorio::data::TileEffectPrototype(object);
+    };
+    ui.register_editor("data/raw/tile-effect", [](editor_builder& builder) {
+        using proto = factorio::data::TileEffectPrototype;
+        builder.section("TileEffectPrototype", [](section_layout_builder& section) {
+            section.add_row(&proto::animation_speed, "animation_speed");
+            section.add_row(&proto::animation_scale, "animation_scale");
+            section.add_row(&proto::foam_color, "foam_color");
         //// editor_row(base, proto, dark_threshold);
         //base.normal("foam_color", proto.foam_color);
         //base.normal("foam_color_multiplier", proto.foam_color_multiplier);
@@ -656,17 +778,9 @@ int main()
         //base.normal("type", proto.type);
         //base.normal("far_zoom", proto.far_zoom);
         //base.normal("near_zoom", proto.near_zoom);
-
-    //Register an editor for a specific prototype
-    //first callback is to build the ui on init (or lazily)
-    //second callback is when a prototype is selected, so we update the editor to reflect the data in that prototype
-    ui.register_editor("data/raw/tile-effect", [](editor_builder& builder) {
-        using proto = factorio::data::TileEffectPrototype;
-        builder.section("TileEffectPrototype", [](section_layout_builder& section) {
-            section.add_row<double, proto>(&proto::animation_speed, "animation_speed");
         });
-    }, [](block_editor& ui, FObject& table) {
-        factorio::data::TileEffectPrototype proto(table);
+    }, [&proto_cache](block_editor& ui, FObject& table) {
+        auto& proto = proto_cache.lookup<factorio::data::TileEffectPrototype>(table);
         ui.bind(&proto);
     });
 

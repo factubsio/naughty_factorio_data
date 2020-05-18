@@ -50,3 +50,22 @@ std::string ws2s(const std::wstring& wstr);
 std::vector<char> load_file_contents(std::string const& filepath);
 
 extern std::shared_ptr<spdlog::logger> err_logger;
+
+//This is black magic
+template<typename T>
+struct member_pointer_class;
+
+template<typename Class, typename Value>
+struct member_pointer_class<Value Class::*>
+{
+    typedef Class type;
+};
+
+template<typename T>
+struct member_pointer_value;
+
+template<typename Class, typename Value>
+struct member_pointer_value<Value Class::*>
+{
+    typedef Value type;
+};
